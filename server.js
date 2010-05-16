@@ -3,7 +3,8 @@ var http = require('http');
 var url = require('url');
 var net = require('net');
 
-var latest = [];
+//we lie for the first little bit while the server gets data
+var latest = ["cheated test", "don't tell anyone", "rectal exam", "HIV test", "control urges", "lost virginity", "playing hooky"];;
 // var most_popular = [];
 var results = {
   latest: latest,
