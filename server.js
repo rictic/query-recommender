@@ -44,8 +44,9 @@ net.createServer(function (stream) {
 
 
 function log_query(query) {
-  sys.puts(query);
-  latest.unshift(query);
+  //we only want unique examples
+  if (latest.indexOf(query) === -1)
+    latest.unshift(query);
   while (latest.length > 7)
     latest.pop();
   
