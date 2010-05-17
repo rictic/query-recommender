@@ -66,7 +66,10 @@ function log_query(query) {
 function broadcast(message) {
   clients.forEach(function(client) {
     try {
-      client.write(message);
+      //race condition here, but the error is uncatchable,
+      //this is the best I can figure to do
+      if (client.readyState === "open")
+        client.write(message);
     } catch(e) {
       sys.puts("error writing to client");
       sys.puts(e.stack || e.message);
