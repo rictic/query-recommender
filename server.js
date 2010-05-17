@@ -2,17 +2,23 @@ var sys = require('sys');
 var http = require('http');
 var url = require('url');
 var net = require('net');
+var fs = require('fs');
 
-//we lie for the first little bit while the server gets data
-var latest = ["cheated test", "don't tell anyone", "rectal exam", "HIV test", "control urges", "lost virginity", "playing hooky"];;
-// var most_popular = [];
 var results = {
-  latest: latest,
-//   most_popular: most_popular
+  latest: ["cheated test", "don't tell anyone", "rectal exam", "HIV test", "control urges", "lost virginity", "playing hooky"]
 }
-http.createServer(function (request, response) {
-  var out = JSON.stringify(results);
 
+try {
+  results = JSON.parse(fs.readFileSync("saved.json"))
+} catch(e) {}
+
+var latest = results.latest;
+
+var output;
+makeOutput();
+
+http.createServer(function (request, response) {
+  var out = output;
   var parts; 
   try {
     parts = url.parse(request.url, true)
@@ -43,7 +49,7 @@ net.createServer(function (stream) {
   });
 }).listen(7000, '0.0.0.0');
 
-
+var log_file = fs.openSync('query.log', 'a+')
 function log_query(query) {
   //we only want unique examples
   if (latest.indexOf(query) === -1)
@@ -51,15 +57,38 @@ function log_query(query) {
   while (latest.length > 7)
     latest.pop();
   
-  //broadcast:
+  //log the message, both locally and over the network
+  var message = (new Date().valueOf().toString()) + "\t" + query + "\n";
+  fs.write(log_file, message, null, 'utf-8');
+  broadcast(message);
+}
+
+function broadcast(message) {
   clients.forEach(function(client) {
-    var was_sent = client.write(query + "\n");
+    try {
+      client.write(message);
+    } catch(e) {
+      sys.puts("error writing to client");
+      sys.puts(e.stack || e.message);
+    }
   })
 }
 
 function removeElement(array, value) {
   var i = array.indexOf(value);
+  if (i === -1)
+    return array;
   return array.slice(0,i).concat(l.slice(i+i,l.length))
 }
 
 sys.puts('Server running');
+
+function makeOutput() {
+  output = JSON.stringify(results);
+}
+
+setInterval(makeOutput, 1000);
+
+setInterval(function() {
+  fs.writeFile('saved.json', output)
+}, 30 * 1000)
