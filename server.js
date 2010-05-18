@@ -7,12 +7,13 @@ var fs = require('fs');
 var results = {
   latest: ["cheated test", "don't tell anyone", "rectal exam", "HIV test", "control urges", "lost virginity", "playing hooky"],
   qpm : 0
-}
+};
 
 try {
-  var parsed = JSON.parse(fs.readFileSync("saved.json"))
-  if (parsed && parsed.latest)
-    results = parsed
+  var parsed = JSON.parse(fs.readFileSync("saved.json"));
+  if (parsed && parsed.latest) {
+    results = parsed;
+  }
 } catch(e) {}
 
 var latest = results.latest;
@@ -40,7 +41,7 @@ http.createServer(function (request, response) {
   var out = output;
   var parts, query;
   try {
-    parts = url.parse(request.url, true)
+    parts = url.parse(request.url, true);
     query = parts.query;
   }catch(e) {}
   
@@ -54,12 +55,14 @@ http.createServer(function (request, response) {
   }
   
   var callback;
-  if (parts && parts.query && parts.query.callback)
+  if (parts && parts.query && parts.query.callback) {
     callback = parts.query.callback;
+  }
   
   response.writeHead(200, {'Content-Type': callback ? 'application/javascript' : 'application/json'});
-  if (callback)
+  if (callback) {
     out = callback + "(" + out + ")";
+  }
   response.end(out);
 }).listen(8000, '0.0.0.0');
 
@@ -75,19 +78,22 @@ net.createServer(function (stream) {
   });
 }).listen(7000, '0.0.0.0');
 
-var spamFilter = /anonboard/
-var log_file = fs.openSync('query.log', 'a+')
+var spamFilter = /anonboard/;
+var log_file = fs.openSync('query.log', 'a+');
 function log_query(query) {
-  if (query.match(spamFilter))
+  if (query.match(spamFilter)) {
     return;
+  }
   var timestamp = +new Date();
   stats.update(timestamp);
   
   //we only want unique examples
-  if (latest.indexOf(query) === -1)
+  if (latest.indexOf(query) === -1) {
     latest.unshift(query);
-  while (latest.length > 7)
+  }
+  while (latest.length > 7) {
     latest.pop();
+  }
   
   //log the message, both locally and over the network
   var message = timestamp + "\t" + query + "\n";
@@ -100,20 +106,23 @@ function broadcast(message) {
     try {
       //race condition here, but the error is uncatchable,
       //this is the best I can figure to do
-      if (client.readyState === "open")
+      if (client.readyState === "open") {
         client.write(message);
+      }
     } catch(e) {
       sys.puts("error writing to client");
       sys.puts(e.stack || e.message);
     }
-  })
+  });
 }
+
 
 function removeElement(array, value) {
   var i = array.indexOf(value);
-  if (i === -1)
+  if (i === -1) {
     return array;
-  return array.slice(0,i).concat(l.slice(i+i,l.length))
+  }
+  return array.slice(0,i).concat(array.slice(i+i,array.length));
 }
 
 sys.puts('Server running');
@@ -126,5 +135,5 @@ function makeOutput() {
 setInterval(makeOutput, 1000);
 
 setInterval(function() {
-  fs.writeFile('saved.json', output)
-}, 30 * 1000)
+  fs.writeFile('saved.json', output);
+}, 30 * 1000);
