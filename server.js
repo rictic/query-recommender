@@ -5,7 +5,8 @@ var net = require('net');
 var fs = require('fs');
 
 var results = {
-  latest: ["cheated test", "don't tell anyone", "rectal exam", "HIV test", "control urges", "lost virginity", "playing hooky"]
+  latest: ["cheated test", "don't tell anyone", "rectal exam", "HIV test", "control urges", "lost virginity", "playing hooky"],
+  qpm : 0
 }
 
 try {
@@ -13,6 +14,22 @@ try {
 } catch(e) {}
 
 var latest = results.latest;
+
+var stats = (function() {
+  var records = [];
+  var TIMEFRAME = 60*1000;
+  function update(timestamp) {
+    records.unshift(timestamp);
+    var recently = timestamp - TIMEFRAME;
+    for (var i = records.length -1; ; i--) {
+      if (records[i] >= recently) { break; }
+      records.pop();
+    }
+  }
+  function getCount() { return records.length; } 
+  return { update:update, getCount:getCount};
+})();
+
 
 var output;
 makeOutput();
@@ -51,6 +68,9 @@ net.createServer(function (stream) {
 
 var log_file = fs.openSync('query.log', 'a+')
 function log_query(query) {
+  var timestamp = +new Date();
+  stats.update(timestamp);
+  
   //we only want unique examples
   if (latest.indexOf(query) === -1)
     latest.unshift(query);
@@ -58,7 +78,7 @@ function log_query(query) {
     latest.pop();
   
   //log the message, both locally and over the network
-  var message = (new Date().valueOf().toString()) + "\t" + query + "\n";
+  var message = timestamp + "\t" + query + "\n";
   fs.write(log_file, message, null, 'utf-8');
   broadcast(message);
 }
@@ -87,6 +107,7 @@ function removeElement(array, value) {
 sys.puts('Server running');
 
 function makeOutput() {
+  results.qpm = stats.getCount();
   output = JSON.stringify(results);
 }
 
