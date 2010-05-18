@@ -51,8 +51,11 @@ net.createServer(function (stream) {
   });
 }).listen(7000, '0.0.0.0');
 
+var spamFilter = /anonboard/
 var log_file = fs.openSync('query.log', 'a+')
 function log_query(query) {
+  if (query.match(spamFilter))
+    return;
   //we only want unique examples
   if (latest.indexOf(query) === -1)
     latest.unshift(query);
