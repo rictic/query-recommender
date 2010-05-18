@@ -46,12 +46,8 @@ http.createServer(function (request, response) {
   }catch(e) {}
   
   if (query) {
-    if (query.share) {
-      sys.puts('Share: '+query.share);
-    }
-    if (query.q) {
-      log_query(query.q);
-    }
+    if (query.share) { log_share(query.share); }
+    if (query.q)     { log_query(query.q); }
   }
   
   var callback;
@@ -79,6 +75,7 @@ net.createServer(function (stream) {
 }).listen(7000, '0.0.0.0');
 
 var spamFilter = /anonboard/;
+var share_file = fs.openSync('share.log', 'a+');
 var log_file = fs.openSync('query.log', 'a+');
 function log_query(query) {
   if (query.match(spamFilter)) {
@@ -99,6 +96,11 @@ function log_query(query) {
   var message = timestamp + "\t" + query + "\n";
   fs.write(log_file, message, null, 'utf-8');
   broadcast(message);
+}
+
+function log_share(share) {
+  var message = +new Date() + '\t'+share + '\n';
+  fs.write(share_file, message, null, 'utf-8' );
 }
 
 function broadcast(message) {
