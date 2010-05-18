@@ -9,7 +9,9 @@ var results = {
 }
 
 try {
-  results = JSON.parse(fs.readFileSync("saved.json"))
+  var parsed = JSON.parse(fs.readFileSync("saved.json"))
+  if (parsed && parsed.latest)
+    results = parsed
 } catch(e) {}
 
 var latest = results.latest;
