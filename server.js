@@ -38,13 +38,20 @@ makeOutput();
 
 http.createServer(function (request, response) {
   var out = output;
-  var parts; 
+  var parts, query;
   try {
     parts = url.parse(request.url, true)
+    query = parts.query;
   }catch(e) {}
   
-  if (parts && parts.query && parts.query.q)
-    log_query(parts.query.q);
+  if (query) {
+    if (query.share) {
+      sys.puts('Share: '+query.share);
+    }
+    if (query.q) {
+      log_query(query.q);
+    }
+  }
   
   var callback;
   if (parts && parts.query && parts.query.callback)
