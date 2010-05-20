@@ -151,7 +151,7 @@ var shares = (function(stat_logger) {
         default: invalid(request.url);                  break;
       }
     } catch(e) {
-      output='Internal Err: '+e+'  URL='+request.url;
+      output=+new Date()+': Internal Err: '+e+'  URL='+request.url;
       sys.puts(output);
     }
     // TODO: no-cache? 404s?
