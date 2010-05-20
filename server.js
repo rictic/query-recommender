@@ -61,8 +61,8 @@ var query_logger = (function(stat_logger) {
 /////////////////////////////
 var share_logger = (function() {
   var share_file = fs.openSync(SHARE_LOG, 'a+');
-  function log(share) {
-    var message = +new Date() + '\t'+share + '\n';
+  function log(query) {
+    var message = [+new Date(), query.q, query.gender, query.count, query.userid].join('\t') + '\n';
     if (DEBUG>1) { sys.print(SHARE_LOG + ': '+message); }
     fs.write(share_file, message, null, 'utf-8' );
   }
@@ -128,8 +128,8 @@ var shares = (function(stat_logger) {
 /////////////////
 (function(share_logger,shares,query_logger) {
 
-  function share(query,query_str) {
-    share_logger.log(query_str);
+  function share(query) {
+    share_logger.log(query);
     shares.add(query);
     return '"SHARED"'; // dummy string
   }
@@ -145,14 +145,13 @@ var shares = (function(stat_logger) {
     try {
       var parts = url.parse(request.url, true);
       var query = parts.query;
-      var query_str = request.url.replace(/^.+?\?/,''); // remove "/share?"
       switch (parts.pathname) {
         case '/favicon.ico': break; // ignore 
-        case '/share':  output=share(query,query_str);  break;
+        case '/share':  output=share(query);            break;
         case '/latest': output=latest(query.q);         break;
         case '/':        // map old-style: TODO: remove once caches flush
         if      (query.q)     { output=latest(query.q); }
-        else if (query.share) { output='"IGNORED SHARE"'; sys.puts('Ignore old style share: '+query_str); }
+        else if (query.share) { output='"IGNORED SHARE"'; sys.puts('Ignore old style share: '+request.url); }
         else                  { invalid(request.url); }
         break;
         default: invalid(request.url);                  break;
