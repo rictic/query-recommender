@@ -1,0 +1,95 @@
+<!DOCTYPE HTML>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+  <style type="text/css">
+  i { font-style:normal; padding-right:0.8em; }
+  table { border-collapse:collapse; }
+  table, th { border: 1px solid black; }
+  td { border: 1px solid gray; }
+  #col1 { width:5em; }
+  .lang { text-align:right; padding-right:1em; }
+  .new { color:green; }
+  .old { color:red; }
+  </style>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+  <script>
+  $(function() {
+    var $table = $('table');
+    var $template = $('table tr:eq(1)').remove();
+    var first=true;
+    
+    var PAUSE_DELAY=6*1000;
+    var FADE_DELAY=PAUSE_DELAY/2;
+    var timeout;
+    function display_results(result) {
+      timeout=null;
+      $('.new',$table).removeClass('new');
+      $('.old',$table).fadeOut(FADE_DELAY,function() { $(this).remove(); });
+      for (var lcode in result.lang) { //lcode = language code (en-gb, en-us, en)
+        var classname = 'lang-'+lcode;
+        var $row = $table.find('tr.'+classname);
+        if (! $row.length) {
+          $row = $template.clone();
+          $row.addClass(classname);
+          $('td:eq(0)',$row).text(lcode);
+          $row.appendTo($table);
+        }
+        var newterms = result.lang[lcode].latest;
+        var $latest = $('td:eq(1)',$row);
+        var $old_terms = $('i',$row);
+        
+        // remove any terms that no longer feature
+        $old_terms.each(function(_,el) {
+          var $oldterm = $(el);
+          var oldterm = $oldterm.attr('term');
+          if (newterms.indexOf(oldterm)===-1) {
+            $oldterm.addClass('old');
+          }
+        });
+        
+        // add any new terms
+        $.each(newterms, function(_,term) {
+          var $old_term = $old_terms.filter(function() { return $(this).attr('term')===term; });
+          if (!$old_term.length) {
+            var $newterm = $('<i>',{text:term, term:term}).appendTo($latest);
+            if (!first) { $newterm.addClass('new').hide().fadeIn(FADE_DELAY); }
+          } 
+        });
+      }
+      first = false;
+      
+      enqueue_next();
+    }
+    
+    function enqueue_next() {
+      $('#state').text('Stopped.');
+      if (!timeout && $('#refresh:checked').length) {
+        $('#state').text('Pausing...');
+        setTimeout(load_dump,PAUSE_DELAY);        
+      }
+    }
+    function load_dump() {
+      $('#state').text('Loading...');
+      $.getJSON('http://popular.youropenbook.org:8000/dump?callback=?',display_results);
+    }
+    
+    load_dump();
+    $('#refresh').click(enqueue_next);
+
+
+  });
+  </script>
+
+</head>
+<body>
+  <div id="header">openbook - live search term</div>
+  <label>Refresh? <input type="checkbox" id="refresh" checked></label><span id="state"></span>
+  
+  <table>
+    <tr><th id="col1">Lang</th><th id="col2">Saved searches</th></tr>
+    <tr id="trow"><td class="lang"></td><td></td></tr>
+  </table>
+</body>
+</html>
