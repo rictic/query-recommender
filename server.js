@@ -214,8 +214,12 @@ var shares = (function(stat_logger) {
       output=+new Date()+': Internal Err: '+e+'  URL='+request.url;
       sys.puts(output);
     }
-    // TODO: no-cache? 404s?
-    response.writeHead(200, {'Content-Type': query.callback ? 'text/javascript' : 'text/plain'});
+    // TODO: 404s?
+    response.writeHead(200, {
+      'Content-Type'  : query.callback ? 'text/javascript' : 'text/plain',
+      'Cache-Control' : 'no-cache, must-revalidate',
+      'Pragma'        : 'no-cache'
+    });
     if (query.callback) {
       output = query.callback + "(" + output + ")";
     }
