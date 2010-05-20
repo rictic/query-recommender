@@ -42,6 +42,11 @@
       $('.new',$table).removeClass('new');
       $('.old',$table).fadeOut(FADE_DELAY,function() { $(this).remove(); });
       for (var lcode in result) { //lcode = language code (en-gb, en-us, en)
+        var newterms = result[lcode];
+        if (!(length in newterms)) {
+          //temp HACK: until dump is flushed completely to new style
+          continue;
+        } 
         var classname = 'lang-'+lcode;
         var $row = $table.find('tr.'+classname);
         if (! $row.length) {
@@ -50,7 +55,6 @@
           $('td:eq(0)',$row).text(lcode);
           $row.appendTo($table);
         }
-        var newterms = result[lcode];
         var $latest = $('td:eq(1)',$row);
         var $old_terms = $('i',$row);
         
@@ -58,7 +62,7 @@
         $old_terms.each(function(_,el) {
           var $oldterm = $(el);
           var oldterm = $oldterm.attr('term');
-          if (newterms.indexOf(oldterm)===-1) {
+          if (newterms.indexOf(oldterm)===-1) { //HACK: won't work in IE??
             $oldterm.addClass('old');
           }
         });
