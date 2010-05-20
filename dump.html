@@ -145,6 +145,11 @@
       $.getJSON(DUMP_API+'?callback=?',{lastdump:lastdump},display_results);
     }
 
+    $('table i').live('click',function() {
+        var q = $(this).text();
+        var url = 'http://youropenbook.org/?q='+encodeURIComponent(q);
+        window.open(url,'_blank');
+    });
     load_dump();
     $('#refresh').click(enqueue_next);
 
