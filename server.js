@@ -25,10 +25,11 @@ if (DEBUG) { sys.puts('\n\nInit. Debug level='+DEBUG); }
 var stats = (function() {
   var records = [];
   var TIMEFRAME = 60*1000;
-  function update(timestamp) {
-    records.unshift(timestamp);
+  function update(update_only) {
+    var timestamp = +new Date();
+    if (!update_only) { records.unshift(timestamp); }
     var recently = timestamp - TIMEFRAME;
-    for (var i = records.length -1; ; i--) {
+    for (var i = records.length -1; i>=0; i--) {
       if (records[i] >= recently) { break; }
       records.pop();
     }
@@ -46,7 +47,7 @@ var query_logger = (function(stat_logger) {
 
   function log(query) {
     var timestamp = +new Date();
-    stat_logger.update(timestamp);
+    stat_logger.update();
     var message = [timestamp, query.q, query.lang].join('\t') + "\n";
     if (DEBUG>2) { sys.print(QUERY_LOG + ': '+message); }
     fs.write(log_file, message, null, 'utf-8');
@@ -94,8 +95,24 @@ var shares = (function(stat_logger) {
     };
   }
 
-  function dump() {
-    return JSON.stringify(results,null,2);
+  // don't bother to send language results if they haven't changed since lastdump
+  function dump(lastdump) {
+    lastdump = lastdump || 0;
+    var out = [];
+    stat_logger.update(true); // update_only
+    out.push('"timestamp":' + +new Date());
+    out.push('"qpm":'       + stat_logger.getCount());
+    for (var lcode in results.lang) {
+      var lang_result = results.lang[lcode];
+      var output = lang_result.output;
+      if (output && lang_result.lastupdate > lastdump) { 
+        out.push( JSON.stringify(lcode) + ':' + output );
+      }
+    }
+    out = '{' + out.join(',') + '}';
+    sys.puts('HACK:'+out);
+    lastdump = +new Date();
+    return out;
   }
   // note: we don't persist qpm, that would require persisting the timestamp array which doesn't seem worth it
   function persist() {
@@ -128,20 +145,32 @@ var shares = (function(stat_logger) {
     var q = query.q;
     if (q.match(spamFilter)) { return; }
     var latest = get_lang(query.lang).latest;
-    if (latest.indexOf(q) === -1) { latest.unshift(q); }     // we only want unique examples
-    while (latest.length > MAX_EXAMPLES) { latest.pop(); }        
+    if (latest.indexOf(q) === -1) {          // we only want unique examples
+      latest.unshift(q);
+      while (latest.length > MAX_EXAMPLES) { // limit the number of examples
+        latest.pop();
+      } 
+      update_lang_results(query.lang);
+    }
   }
-
-
-  function get_results(lang) {
+  
+  function update_lang_results(lang) {
     var lang_result = get_lang(lang);
     var timestamp = +new Date();
     var min_timestamp = timestamp - MAX_AGE;
     if (lang_result.lastupdate < min_timestamp) {
       lang_result.lastupdate = timestamp;
-      lang_result.output = JSON.stringify( {latest: lang_result.latest, qpm:stat_logger.getCount()} );
+      lang_result.output = JSON.stringify( lang_result.latest );
     }
-    return lang_result.output;
+  }
+
+  function get_results(lang) {
+    var lang_result = get_lang(lang);
+    // it's possible to request latest before appending during startup
+    if (!lang_result.output) {
+      update_lang_results(lang);
+    }
+    return '{"qpm":'+stat_logger.getCount() + ', "latest":' + lang_result.output + '}';
   }
 
   setInterval(persist, 30 * 1000);
@@ -209,7 +238,7 @@ var shares = (function(stat_logger) {
         case '/favicon.ico': break; // ignore
         case '/share':  output=share(query);  break;
         case '/latest': output=latest(query); break;
-        case '/dump':   output=shares.dump(); break;
+        case '/dump':   output=shares.dump(query.lastdump); break;
         case '/':       output=old(query);    break; // map old-style: TODO: remove once caches flush
         default: invalid(request.url);        break;
       }

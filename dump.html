@@ -22,12 +22,26 @@
     
     var PAUSE_DELAY=6*1000;
     var FADE_DELAY=PAUSE_DELAY/2;
+    var DUMP_API=(function() {
+      var r = /dump_api=(.+?)(&|$)/.exec(document.location.search);
+      if (r && r[1]) {
+        return r[1];
+      }
+      return 'http://popular.youropenbook.org:8000/dump';
+    })();
+
     var timeout;
+    var lastdump=0;
     function display_results(result) {
       timeout=null;
+      var lastdump = result.timestamp; delete result.timestamp;
+      var qpm =result.qpm; delete result.qpm;
+      $('#timestamp').text( ''+new Date(lastdump) );
+      $('#qpm').text( qpm );
+      
       $('.new',$table).removeClass('new');
       $('.old',$table).fadeOut(FADE_DELAY,function() { $(this).remove(); });
-      for (var lcode in result.lang) { //lcode = language code (en-gb, en-us, en)
+      for (var lcode in result) { //lcode = language code (en-gb, en-us, en)
         var classname = 'lang-'+lcode;
         var $row = $table.find('tr.'+classname);
         if (! $row.length) {
@@ -36,7 +50,7 @@
           $('td:eq(0)',$row).text(lcode);
           $row.appendTo($table);
         }
-        var newterms = result.lang[lcode].latest;
+        var newterms = result[lcode];
         var $latest = $('td:eq(1)',$row);
         var $old_terms = $('i',$row);
         
@@ -72,7 +86,7 @@
     }
     function load_dump() {
       $('#state').text('Loading...');
-      $.getJSON('http://popular.youropenbook.org:8000/dump?callback=?',display_results);
+      $.getJSON(DUMP_API+'?callback=?',{lastdump:lastdump},display_results);
     }
     
     load_dump();
@@ -86,7 +100,8 @@
 <body>
   <div id="header">openbook - live search term</div>
   <label>Refresh? <input type="checkbox" id="refresh" checked></label><span id="state"></span>
-  
+  <span>Last update: <span id="timestamp"></span></span>
+  <span>Query/min:   <span id="qpm"></span></span>
   <table>
     <tr><th id="col1">Lang</th><th id="col2">Saved searches</th></tr>
     <tr id="trow"><td class="lang"></td><td></td></tr>
