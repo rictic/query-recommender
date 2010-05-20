@@ -11,7 +11,14 @@ var QUERY_LOG  = 'query.log';  // every query run on our site
 var SHARE_LOG  = 'share.log';  // every query that's a candidate for recent searches
 var STATE_FILE = 'saved.json'; // persisted server state
 
-var DEBUG = process.argv[2]==='-debug' || false; // invoke with node server.js -debug for console logging
+// invoke with node server.js -debug for console logging
+var DEBUG=(function(arg) {
+  var r = /-debug=?(\d+)?/.exec(arg);
+  if (r && r.length===2) { return parseInt(r[1],10); }
+  return 0;
+})(process.argv[2]||'');
+
+sys.puts('DEBUG='+DEBUG);
 
 if (DEBUG) { sys.puts('\n\nInit'); }
 
@@ -44,7 +51,7 @@ var query_logger = (function(stat_logger) {
     var timestamp = +new Date();
     stat_logger.update(timestamp);
     var message = timestamp + "\t" + query + "\n";
-    if (DEBUG) { sys.print(QUERY_LOG + ': '+message); }
+    if (DEBUG>2) { sys.print(QUERY_LOG + ': '+message); }
     fs.write(log_file, message, null, 'utf-8');
   }
   return {log:log};
@@ -58,7 +65,7 @@ var share_logger = (function() {
   var share_file = fs.openSync(SHARE_LOG, 'a+');
   function log(share) {
     var message = +new Date() + '\t'+share + '\n';
-    if (DEBUG) { sys.print(SHARE_LOG + ': '+message); }
+    if (DEBUG>1) { sys.print(SHARE_LOG + ': '+message); }
     fs.write(share_file, message, null, 'utf-8' );
   }
   return {log:log};
@@ -80,7 +87,7 @@ var shares = (function(stat_logger) {
   var results_output;
 
   function persist() {
-    if (DEBUG) { sys.puts(STATE_FILE+': '+results_output); }
+    if (DEBUG>1) { sys.puts(STATE_FILE+': '+results_output); }
     fs.writeFile(STATE_FILE, results_output);
   }
   function unpersist() {
