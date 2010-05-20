@@ -9,7 +9,7 @@ var QUERY_LOG  = 'query.log';  // every query run on our site
 var SHARE_LOG  = 'share.log';  // every query that's a candidate for recent searches
 var STATE_FILE = 'saved.json'; // persisted server state
 
-// invoke with node server.js -debug for console logging
+// invoke with node server.js -debug=3 for max console logging
 var DEBUG=(function(arg) {
   var r = /-debug=?(\d+)?/.exec(arg);
   if (r && r.length===2) { return parseInt(r[1],10); }
