@@ -93,6 +93,9 @@ var shares = (function(stat_logger) {
     };
   }
 
+  function dump() {
+    return JSON.stringify(results,null,2);
+  }
   // note: we don't persist qpm, that would require persisting the timestamp array which doesn't seem worth it
   function persist() {
     var out = JSON.stringify(results);
@@ -139,7 +142,7 @@ var shares = (function(stat_logger) {
   }
 
   setInterval(persist, 30 * 1000);
-  return {get_results:get_results, add:add};
+  return {get_results:get_results, add:add, dump:dump};
 }
 )(stats);
 
@@ -170,6 +173,7 @@ var shares = (function(stat_logger) {
         case '/favicon.ico': break; // ignore
         case '/share':  output=share(query);  break;
         case '/latest': output=latest(query); break;
+        case '/dump':   output=shares.dump(); break;
         default: invalid(request.url);        break;
       }
     } catch(e) {
