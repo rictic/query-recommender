@@ -163,6 +163,20 @@ var shares = (function(stat_logger) {
     query_logger.log(query);
     return shares.get_results(query.lang);
   }
+  function old(query) {
+    if (query.q) { 
+      if (DEBUG) { sys.puts('Got old style log '+query.q); }
+      return latest(query);
+    }
+    else if (query.share) {
+      if (DEBUG) { sys.puts('Ignore old style share: '+query.share); }
+      return '"IGNORED SHARE"';
+    } 
+    else  {
+      sys.puts('Invalid url');
+      return '"IGNORED"';
+    }
+  }
   function invalid(url) {
     sys.puts('Invalid url: '+url);
   }
@@ -193,6 +207,7 @@ var shares = (function(stat_logger) {
         case '/share':  output=share(query);  break;
         case '/latest': output=latest(query); break;
         case '/dump':   output=shares.dump(); break;
+        case '/':       output=old(query);    break; // map old-style: TODO: remove once caches flush
         default: invalid(request.url);        break;
       }
     } catch(e) {
