@@ -186,14 +186,17 @@ var shares = (function(stat_logger) {
     else if ('accept-language' in headers) {
       accept  = headers['accept-language'].toLowerCase();
     } else {
-      if (DEBUG) { sys.puts('accept-language not in headers: '+sys.inspect(headers)); }
+      //  Firefox sometimes doesn't send accept-language
+      if (DEBUG>2) { sys.puts('accept-language not in headers: '+sys.inspect(headers)); }
     }
-    var bits = accept.split(/,|;/);
-    if (bits.length && (/^\w+(-\w+)?$/.test(bits[0]))) {
-      lang = bits[0];
-    } else {
-      if (DEBUG) { sys.puts('accept-language could not parse: '+accept); }
-    } 
+    if (accept) {
+      var bits = accept.split(/,|;/);
+      if (bits.length && (/^\w+(-\w+)?$/.test(bits[0]))) {
+        lang = bits[0];
+      } else {
+        if (DEBUG) { sys.puts('accept-language could not parse: '+accept); }
+      } 
+    }
     return lang; 
   }
   http.createServer(function (request, response) {
