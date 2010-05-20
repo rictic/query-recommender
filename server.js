@@ -166,12 +166,28 @@ var shares = (function(stat_logger) {
   function invalid(url) {
     sys.puts('Invalid url: '+url);
   }
+  function get_lang_from_header(override,headers) {
+    var lang = '??', accept;
+    if (override) { accept = override; }
+    else if ('accept-language' in headers) {
+      accept  = headers['accept-language'].toLowerCase();
+    } else {
+      if (DEBUG) { sys.puts('accept-language not in headers: '+sys.inspect(headers)); }
+    }
+    var bits = accept.split(/,|;/);
+    if (bits.length && (/^\w+(-\w+)?$/.test(bits[0]))) {
+      lang = bits[0];
+    } else {
+      if (DEBUG) { sys.puts('accept-language could not parse: '+accept); }
+    } 
+    return lang; 
+  }
   http.createServer(function (request, response) {
     var output;
     try {
       var parts = url.parse(request.url, true);
       var query = parts.query || {};
-      query.lang = query.lang || (request.headers['accept-language']||'').split(/,|;|\s/)[0].toLowerCase() || '??';
+      query.lang = get_lang_from_header(query.lang||null,request.headers);
       switch (parts.pathname) {
         case '/favicon.ico': break; // ignore
         case '/share':  output=share(query);  break;
