@@ -148,11 +148,6 @@ var shares = (function(stat_logger) {
         case '/favicon.ico': break; // ignore 
         case '/share':  output=share(query);            break;
         case '/latest': output=latest(query);         break;
-        case '/':        // map old-style: TODO: remove once caches flush
-        if      (query.q)     { output=latest(query.q); }
-        else if (query.share) { output='"IGNORED SHARE"'; sys.puts('Ignore old style share: '+request.url); }
-        else                  { invalid(request.url); }
-        break;
         default: invalid(request.url);                  break;
       }
     } catch(e) {
