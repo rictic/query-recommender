@@ -110,7 +110,6 @@ var shares = (function(stat_logger) {
       }
     }
     out = '{' + out.join(',') + '}';
-    sys.puts('HACK:'+out);
     lastdump = +new Date();
     return out;
   }
