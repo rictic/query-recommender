@@ -14,7 +14,8 @@ var DEBUG=(function(arg) {
   var r = /-debug=?(\d+)?/.exec(arg);
   if (r && r.length===2) { return parseInt(r[1],10); }
   return 0;
-})(process.argv[2]||'');
+}
+)(process.argv[2]||'');
 
 if (DEBUG) { sys.puts('\n\nInit. Debug level='+DEBUG); }
 
@@ -32,7 +33,7 @@ var stats = (function() {
       records.pop();
     }
   }
-  function getCount() { return records.length; } 
+  function getCount() { return records.length; }
   return { update:update, getCount:getCount};
 }
 )();
@@ -91,7 +92,7 @@ var shares = (function(stat_logger) {
       output:     '' // JSON string to return for /latest
     };
   }
-  
+
   // note: we don't persist qpm, that would require persisting the timestamp array which doesn't seem worth it
   function persist() {
     var out = JSON.stringify(results);
@@ -107,7 +108,7 @@ var shares = (function(stat_logger) {
     } catch(e) {
       sys.puts('unpersist failure: '+e);
     }
-    return state; 
+    return state;
   }
 
   function get_lang(lang) {
@@ -166,10 +167,10 @@ var shares = (function(stat_logger) {
       var query = parts.query || {};
       query.lang = query.lang || (request.headers['accept-language']||'').split(',')[0].toLowerCase();
       switch (parts.pathname) {
-        case '/favicon.ico': break; // ignore 
-        case '/share':  output=share(query);            break;
-        case '/latest': output=latest(query);         break;
-        default: invalid(request.url);                  break;
+        case '/favicon.ico': break; // ignore
+        case '/share':  output=share(query);  break;
+        case '/latest': output=latest(query); break;
+        default: invalid(request.url);        break;
       }
     } catch(e) {
       output=+new Date()+': Internal Err: '+e+'  URL='+request.url;
