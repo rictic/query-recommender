@@ -50,110 +50,108 @@
       <span id="rates">Query rate: <b id="qps"></b>/s <b id="qpm"></b>/m <b id="qph"></b>K/h</span>
     </div>
 
-
-    <table>
-      <tr><th id="col1">Lang</th><th id="col2">Saved searches</th></tr>
-      <tr id="trow"><td class="lang"></td><td></td></tr>
-    </table>
     <div id="body">
-
-
-
-      <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
-      <script>
-      $(function() {
-        var $table = $('table');
-        var $template = $('table tr:eq(1)').remove();
-        var first=true;
-
-        var PAUSE_DELAY=6*1000;
-        var FADE_DELAY=0; //PAUSE_DELAY/2;
-        var DUMP_API=(function() {
-          var r = /dump_api=(.+?)(&|$)/.exec(document.location.search);
-          if (r && r[1]) {
-            return r[1];
-          }
-          return 'http://popular.youropenbook.org:8000/dump';
-          })();
-
-          function padzero(n) { return (n<10 ? '0' : '') + n; }
-          function format_timestamp(ts) {
-            var d = new Date(ts);
-            return padzero(d.getHours()) + ':' + padzero(d.getMinutes()) + ':' + padzero(d.getSeconds());
-          }
-
-          var timeout;
-          var lastdump=0;
-          function display_results(result) {
-            timeout=null;
-            var lastdump = result.timestamp; delete result.timestamp;
-            var qpm =result.qpm; delete result.qpm;
-            $('#timestamp').text( format_timestamp(lastdump) );
-            $('#qps').text( Math.round(10*qpm/60)/10 );
-            $('#qpm').text( qpm );
-            $('#qph').text( Math.round(qpm*60/1000) );
-
-
-            $('.new',$table).removeClass('new');
-            $('.old',$table).fadeOut(FADE_DELAY,function() { $(this).remove(); });
-            for (var lcode in result) { //lcode = language code (en-gb, en-us, en)
-              var newterms = result[lcode];
-              if (!(length in newterms)) {
-                //temp HACK: until dump is flushed completely to new style
-                continue;
-              } 
-              var $row = $table.find('tr[lcode='+lcode+']');
-              if (! $row.length) {
-                $row = $template.clone();
-                $row.attr('lcode',lcode);
-                $('td:eq(0)',$row).text(lcode);
-                $row.appendTo($table);
-              }
-              var $latest = $('td:eq(1)',$row);
-              var $old_terms = $('i',$row);
-
-              // remove any terms that no longer feature
-              $old_terms.each(function(_,el) {
-                var $oldterm = $(el);
-                var oldterm = $oldterm.attr('term');
-                if (newterms.indexOf(oldterm)===-1) { //HACK: won't work in IE??
-                $oldterm.addClass('old');
-              }
-            });
-
-            // add any new terms
-            $.each(newterms, function(_,term) {
-              var $old_term = $old_terms.filter(function() { return $(this).attr('term')===term; });
-              if (!$old_term.length) {
-                var $newterm = $('<i>',{text:term, term:term}).appendTo($latest);
-                if (!first) { $newterm.addClass('new').hide().fadeIn(FADE_DELAY); }
-              } 
-            });
-          }
-          first = false;
-
-          enqueue_next();
-        }
-
-        function enqueue_next() {
-          if (!timeout && $('#refresh:checked').length) {
-            $('#spinner').hide();
-            setTimeout(load_dump,PAUSE_DELAY);        
-          }
-        }
-        function load_dump() {
-          $('#spinner').show();
-          $.getJSON(DUMP_API+'?callback=?',{lastdump:lastdump},display_results);
-        }
-
-        load_dump();
-        $('#refresh').click(enqueue_next);
-
-
-      });
-      </script>
-
+      <table>
+        <tr><th id="col1">Lang</th><th id="col2">Saved searches</th></tr>
+        <tr id="trow"><td class="lang"></td><td></td></tr>
+      </table>
     </div>
   </div>
+
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+  <script>
+  $(function() {
+    var $table = $('table');
+    var $template = $('table tr:eq(1)').remove();
+    var first=true;
+
+    var PAUSE_DELAY=6*1000;
+    var FADE_DELAY=0; //PAUSE_DELAY/2;
+    var DUMP_API=(function() {
+      var r = /dump_api=(.+?)(&|$)/.exec(document.location.search);
+      if (r && r[1]) {
+        return r[1];
+      }
+      return 'http://popular.youropenbook.org:8000/dump';
+      })();
+
+      function padzero(n) { return (n<10 ? '0' : '') + n; }
+      function format_timestamp(ts) {
+        var d = new Date(ts);
+        return padzero(d.getHours()) + ':' + padzero(d.getMinutes()) + ':' + padzero(d.getSeconds());
+      }
+
+      var timeout;
+      var lastdump=0;
+      function display_results(result) {
+        timeout=null;
+        var lastdump = result.timestamp; delete result.timestamp;
+        var qpm =result.qpm; delete result.qpm;
+        $('#timestamp').text( format_timestamp(lastdump) );
+        $('#qps').text( Math.round(10*qpm/60)/10 );
+        $('#qpm').text( qpm );
+        $('#qph').text( Math.round(qpm*60/1000) );
+
+
+        $('.new',$table).removeClass('new');
+        $('.old',$table).fadeOut(FADE_DELAY,function() { $(this).remove(); });
+        for (var lcode in result) { //lcode = language code (en-gb, en-us, en)
+          var newterms = result[lcode];
+          if (!(length in newterms)) {
+            //temp HACK: until dump is flushed completely to new style
+            continue;
+          }
+          var $row = $table.find('tr[lcode='+lcode+']');
+          if (! $row.length) {
+            $row = $template.clone();
+            $row.attr('lcode',lcode);
+            $('td:eq(0)',$row).text(lcode);
+            $row.appendTo($table);
+          }
+          var $latest = $('td:eq(1)',$row);
+          var $old_terms = $('i',$row);
+
+          // remove any terms that no longer feature
+          $old_terms.each(function(_,el) {
+            var $oldterm = $(el);
+            var oldterm = $oldterm.attr('term');
+            if (newterms.indexOf(oldterm)===-1) { //HACK: won't work in IE??
+            $oldterm.addClass('old');
+          }
+        });
+
+        // add any new terms
+        $.each(newterms, function(_,term) {
+          var $old_term = $old_terms.filter(function() { return $(this).attr('term')===term; });
+          if (!$old_term.length) {
+            var $newterm = $('<i>',{text:term, term:term}).appendTo($latest);
+            if (!first) { $newterm.addClass('new').hide().fadeIn(FADE_DELAY); }
+          }
+        });
+      }
+      first = false;
+
+      enqueue_next();
+    }
+
+    function enqueue_next() {
+      if (!timeout && $('#refresh:checked').length) {
+        $('#spinner').hide();
+        setTimeout(load_dump,PAUSE_DELAY);
+      }
+    }
+    function load_dump() {
+      $('#spinner').show();
+      $.getJSON(DUMP_API+'?callback=?',{lastdump:lastdump},display_results);
+    }
+
+    load_dump();
+    $('#refresh').click(enqueue_next);
+
+
+  });
+  </script>
+
+
 </body>
 </html>
