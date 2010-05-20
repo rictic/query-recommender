@@ -4,8 +4,6 @@ var url  = require('url');
 var net  = require('net');
 var fs   = require('fs');
 
-//var lang = request.headers['accept-language'].split(',')[0].toLowerCase(); //TODO
-
 var LOG_SERVER_PORT = 8000;    // for /latest?q=xxx&gender=any and /share?q=xxx&gender=any&count=11&userid=1058420149
 var QUERY_LOG  = 'query.log';  // every query run on our site
 var SHARE_LOG  = 'share.log';  // every query that's a candidate for recent searches
@@ -48,7 +46,7 @@ var query_logger = (function(stat_logger) {
   function log(query) {
     var timestamp = +new Date();
     stat_logger.update(timestamp);
-    var message = timestamp + "\t" + query + "\n";
+    var message = [timestamp, query.q, query.lang].join('\t') + "\n";
     if (DEBUG>2) { sys.print(QUERY_LOG + ': '+message); }
     fs.write(log_file, message, null, 'utf-8');
   }
@@ -62,7 +60,7 @@ var query_logger = (function(stat_logger) {
 var share_logger = (function() {
   var share_file = fs.openSync(SHARE_LOG, 'a+');
   function log(query) {
-    var message = [+new Date(), query.q, query.gender, query.count, query.userid].join('\t') + '\n';
+    var message = [+new Date(), query.q, query.lang, query.gender, query.count, query.userid].join('\t') + '\n';
     if (DEBUG>1) { sys.print(SHARE_LOG + ': '+message); }
     fs.write(share_file, message, null, 'utf-8' );
   }
@@ -133,8 +131,8 @@ var shares = (function(stat_logger) {
     shares.add(query);
     return '"SHARED"'; // dummy string
   }
-  function latest(q) {
-    query_logger.log(q);
+  function latest(query) {
+    query_logger.log(query);
     return shares.get_results();
   }
   function invalid(url) {
@@ -144,11 +142,12 @@ var shares = (function(stat_logger) {
     var output;
     try {
       var parts = url.parse(request.url, true);
-      var query = parts.query;
+      var query = parts.query || {};
+      query.lang = query.lang || request.headers['accept-language'].split(',')[0].toLowerCase();
       switch (parts.pathname) {
         case '/favicon.ico': break; // ignore 
         case '/share':  output=share(query);            break;
-        case '/latest': output=latest(query.q);         break;
+        case '/latest': output=latest(query);         break;
         case '/':        // map old-style: TODO: remove once caches flush
         if      (query.q)     { output=latest(query.q); }
         else if (query.share) { output='"IGNORED SHARE"'; sys.puts('Ignore old style share: '+request.url); }
