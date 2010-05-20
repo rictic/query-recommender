@@ -1,23 +1,23 @@
-var sys = require('sys');
+var sys  = require('sys');
 var http = require('http');
-var url = require('url');
-var net = require('net');
-var fs = require('fs');
+var url  = require('url');
+var net  = require('net');
+var fs   = require('fs');
 
-var results = {
-  latest: ["cheated test", "don't tell anyone", "rectal exam", "HIV test", "control urges", "lost virginity", "playing hooky"],
-  qpm : 0
-};
+//var lang = request.headers['accept-language'].split(',')[0].toLowerCase(); //TODO
 
-try {
-  var parsed = JSON.parse(fs.readFileSync("saved.json"));
-  if (parsed && parsed.latest) {
-    results = parsed;
-  }
-} catch(e) {}
+var LOG_SERVER_PORT = 8000;    // for /latest?q=xxx&gender=any and /share?q=xxx&gender=any&count=11&userid=1058420149
+var QUERY_LOG  = 'query.log';  // every query run on our site
+var SHARE_LOG  = 'share.log';  // every query that's a candidate for recent searches
+var STATE_FILE = 'saved.json'; // persisted server state
 
-var latest = results.latest;
+var DEBUG = process.argv[2]==='-debug' || false; // invoke with node server.js -debug for console logging
 
+if (DEBUG) { sys.puts('\n\nInit'); }
+
+//////////////////////
+// maintain the qpm //
+//////////////////////
 var stats = (function() {
   var records = [];
   var TIMEFRAME = 60*1000;
@@ -31,111 +31,145 @@ var stats = (function() {
   }
   function getCount() { return records.length; } 
   return { update:update, getCount:getCount};
-})();
-
-
-var output;
-makeOutput();
-
-http.createServer(function (request, response) {
-  var out = output;
-  var parts, query;
-  try {
-    parts = url.parse(request.url, true);
-    query = parts.query;
-  }catch(e) {}
-  
-  if (query) {
-    if (query.share) { log_share(query.share); }
-    if (query.q)     { log_query(query.q); }
-  }
-  
-  var callback;
-  if (parts && parts.query && parts.query.callback) {
-    callback = parts.query.callback;
-  }
-  
-  response.writeHead(200, {'Content-Type': callback ? 'application/javascript' : 'application/json'});
-  if (callback) {
-    out = callback + "(" + out + ")";
-  }
-  response.end(out);
-}).listen(8000, '0.0.0.0');
-
-
-var clients = [];
-net.createServer(function (stream) {
-  stream.setEncoding('utf8');
-  stream.addListener('connect', function () {
-    clients.push(stream);
-  });
-  stream.addListener('close', function () {
-    clients = removeElement(clients, stream);
-  });
-}).listen(7000, '0.0.0.0');
-
-var spamFilter = /anonboard/;
-var share_file = fs.openSync('share.log', 'a+');
-var log_file = fs.openSync('query.log', 'a+');
-function log_query(query) {
-  if (query.match(spamFilter)) {
-    return;
-  }
-  var timestamp = +new Date();
-  stats.update(timestamp);
-  
-  //we only want unique examples
-  if (latest.indexOf(query) === -1) {
-    latest.unshift(query);
-  }
-  while (latest.length > 7) {
-    latest.pop();
-  }
-  
-  //log the message, both locally and over the network
-  var message = timestamp + "\t" + query + "\n";
-  fs.write(log_file, message, null, 'utf-8');
-  broadcast(message);
 }
+)();
 
-function log_share(share) {
-  var message = +new Date() + '\t'+share + '\n';
-  fs.write(share_file, message, null, 'utf-8' );
+////////////////////////////
+// maintain the query log //
+////////////////////////////
+var query_logger = (function(stat_logger) {
+  var log_file = fs.openSync(QUERY_LOG, 'a+');
+
+  function log(query) {
+    var timestamp = +new Date();
+    stat_logger.update(timestamp);
+    var message = timestamp + "\t" + query + "\n";
+    if (DEBUG) { sys.print(QUERY_LOG + ': '+message); }
+    fs.write(log_file, message, null, 'utf-8');
+  }
+  return {log:log};
 }
+)(stats);
 
-function broadcast(message) {
-  clients.forEach(function(client) {
+/////////////////////////////
+// maintain the shares log //
+/////////////////////////////
+var share_logger = (function() {
+  var share_file = fs.openSync(SHARE_LOG, 'a+');
+  function log(share) {
+    var message = +new Date() + '\t'+share + '\n';
+    if (DEBUG) { sys.print(SHARE_LOG + ': '+message); }
+    fs.write(share_file, message, null, 'utf-8' );
+  }
+  return {log:log};
+}
+)();
+
+////////////////////////////////
+// Maintain the latest shares //
+////////////////////////////////
+var shares = (function(stat_logger) {
+  var spamFilter = /anonboard/;
+
+  var results = unpersist() || {
+    latest: ["cheated test", "don't tell anyone", "rectal exam", "HIV test", "control urges", "lost virginity", "playing hooky"],
+    qpm : 0
+  };
+  // note: we can't actually restore qpm, that would require persisting the timestamp array which doesn't seem worth it
+  if (DEBUG) { sys.puts('Restored state: '+JSON.stringify(results,null,2)); }
+  var results_output;
+
+  function persist() {
+    if (DEBUG) { sys.puts(STATE_FILE+': '+results_output); }
+    fs.writeFile(STATE_FILE, results_output);
+  }
+  function unpersist() {
+    var state;
     try {
-      //race condition here, but the error is uncatchable,
-      //this is the best I can figure to do
-      if (client.readyState === "open") {
-        client.write(message);
+      state = JSON.parse(fs.readFileSync(STATE_FILE));
+    } catch(e) {
+      sys.puts('unpersist failure: '+e);
+    }
+    return state; 
+  }
+
+  // takes query: {q:'my dui',gender:'any',count:22,userid:1282899202} //TODO: handle the other args
+  function add(query) {
+    var q = query.q;
+    if (q.match(spamFilter)) { return; }
+    var latest = results.latest;
+    if (latest.indexOf(q) === -1) { latest.unshift(q); }     // we only want unique examples
+    while (latest.length > 7)     { latest.pop(); }          // we only want 7 examples
+  }
+
+
+  function get_results() {
+    return results_output;
+  }
+  function makeOutput() {
+    results.qpm = stat_logger.getCount();
+    results_output = JSON.stringify(results);
+  }
+
+  makeOutput(); 
+  setInterval(makeOutput, 1000);
+  setInterval(persist, 30 * 1000);
+  return {get_results:get_results, add:add};
+}
+)(stats);
+
+/////////////////
+// log server  //
+/////////////////
+(function(share_logger,shares,query_logger) {
+
+  function share(query,query_str) {
+    share_logger.log(query_str);
+    shares.add(query);
+    return '"SHARED"'; // dummy string
+  }
+  function latest(q) {
+    query_logger.log(q);
+    return shares.get_results();
+  }
+  function invalid(url) {
+    sys.puts('Invalid url: '+url);
+  }
+  http.createServer(function (request, response) {
+    var output;
+    try {
+      var parts = url.parse(request.url, true);
+      var query = parts.query;
+      var query_str = request.url.replace(/^.+?\?/,''); // remove "/share?"
+      switch (parts.pathname) {
+        case '/favicon.ico': break; // ignore 
+        case '/share':  output=share(query,query_str);  break;
+        case '/latest': output=latest(query.q);         break;
+        case '/':        // map old-style: TODO: remove once caches flush
+        if      (query.q)     { output=latest(query.q); }
+        else if (query.share) { output='"IGNORED SHARE"'; sys.puts('Ignore old style share: '+query_str); }
+        else                  { invalid(request.url); }
+        break;
+        default: invalid(request.url);                  break;
       }
     } catch(e) {
-      sys.puts("error writing to client");
-      sys.puts(e.stack || e.message);
+      output='Internal Err: '+e;
+      sys.puts(output);
     }
-  });
-}
-
-
-function removeElement(array, value) {
-  var i = array.indexOf(value);
-  if (i === -1) {
-    return array;
+    // TODO: no-cache? 404s?
+    response.writeHead(200, {'Content-Type': query.callback ? 'text/javascript' : 'text/plain'});
+    if (query.callback) {
+      output = query.callback + "(" + output + ")";
+    }
+    response.end(output);
   }
-  return array.slice(0,i).concat(array.slice(i+i,array.length));
+).listen(LOG_SERVER_PORT, '0.0.0.0');
+
+sys.puts('Log Server running on port '+LOG_SERVER_PORT);
+
 }
+)(share_logger,shares,query_logger);
 
-sys.puts('Server running');
 
-function makeOutput() {
-  results.qpm = stats.getCount();
-  output = JSON.stringify(results);
-}
 
-setInterval(makeOutput, 1000);
 
-setInterval(function() {
-  fs.writeFile('saved.json', output);
-}, 30 * 1000);
