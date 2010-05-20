@@ -171,7 +171,7 @@ var shares = (function(stat_logger) {
     try {
       var parts = url.parse(request.url, true);
       var query = parts.query || {};
-      query.lang = query.lang || (request.headers['accept-language']||'').split(/,|;/)[0].toLowerCase();
+      query.lang = query.lang || (request.headers['accept-language']||'').split(/,|;/)[0].toLowerCase() || '??';
       switch (parts.pathname) {
         case '/favicon.ico': break; // ignore
         case '/share':  output=share(query);  break;
