@@ -18,9 +18,7 @@ var DEBUG=(function(arg) {
   return 0;
 })(process.argv[2]||'');
 
-sys.puts('DEBUG='+DEBUG);
-
-if (DEBUG) { sys.puts('\n\nInit'); }
+if (DEBUG) { sys.puts('\n\nInit. Debug level='+DEBUG); }
 
 //////////////////////
 // maintain the qpm //
