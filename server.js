@@ -134,8 +134,10 @@ var shares = (function(stat_logger) {
 
   function get_results(lang) {
     var lang_result = get_lang(lang);
-    var min_timestamp = +new Date() - MAX_AGE;
+    var timestamp = +new Date();
+    var min_timestamp = timestamp - MAX_AGE;
     if (lang_result.lastupdate < min_timestamp) {
+      lang_result.lastupdate = timestamp;
       lang_result.output = JSON.stringify( {latest: lang_result.latest, qpm:stat_logger.getCount()} );
     }
     return lang_result.output;
