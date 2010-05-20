@@ -68,54 +68,75 @@ var share_logger = (function() {
 }
 )();
 
+
 ////////////////////////////////
 // Maintain the latest shares //
 ////////////////////////////////
 var shares = (function(stat_logger) {
+  var MAX_AGE    = 2 * 1000; // regenerate results if older than this
   var spamFilter = /anonboard/;
 
   var results = unpersist() || {
-    latest: ["cheated test", "don't tell anyone", "rectal exam", "HIV test", "control urges", "lost virginity", "playing hooky"],
-    qpm : 0
+    lang : {
+      'en-us': new_lang()
+    }
   };
-  // note: we can't actually restore qpm, that would require persisting the timestamp array which doesn't seem worth it
-  if (DEBUG) { sys.puts('Restored state: '+JSON.stringify(results,null,2)); }
-  var results_output;
 
+  if (DEBUG) { sys.puts('Restored state: '+JSON.stringify(results,null,2)); }
+
+  function new_lang() {
+    return {
+      latest: ["cheated test", "don't tell anyone", "rectal exam", "HIV test", "control urges", "lost virginity", "playing hooky"],
+      lastupdate: 0, // timestamp when output was last updated
+      output:     '' // JSON string to return for /latest
+    };
+  }
+  
+  // note: we don't persist qpm, that would require persisting the timestamp array which doesn't seem worth it
   function persist() {
-    if (DEBUG>1) { sys.puts(STATE_FILE+': '+results_output); }
-    fs.writeFile(STATE_FILE, results_output);
+    var out = JSON.stringify(results);
+    if (DEBUG>1) { sys.puts(STATE_FILE+': '+out); }
+    fs.writeFile(STATE_FILE, out);
   }
   function unpersist() {
     var state;
     try {
       state = JSON.parse(fs.readFileSync(STATE_FILE));
+      // check it's a valid results object
+      if (!state.lang) { state=null; }
     } catch(e) {
       sys.puts('unpersist failure: '+e);
     }
     return state; 
   }
 
-  // takes query: {q:'my dui',gender:'any',count:22,userid:1282899202} //TODO: handle the other args
+  function get_lang(lang) {
+    if (!(lang in results.lang)) {
+      if (DEBUG) { sys.puts('Added lang: '+lang); }
+      results.lang[lang] = new_lang();
+    }
+    return results.lang[lang];
+  }
+
+  // takes query: {q:'my dui',lang:'en-us',gender:'any',count:22,userid:1282899202} //TODO: handle the other args
   function add(query) {
     var q = query.q;
     if (q.match(spamFilter)) { return; }
-    var latest = results.latest;
+    var latest = get_lang(query.lang).latest;
     if (latest.indexOf(q) === -1) { latest.unshift(q); }     // we only want unique examples
     while (latest.length > 7)     { latest.pop(); }          // we only want 7 examples
   }
 
 
-  function get_results() {
-    return results_output;
-  }
-  function makeOutput() {
-    results.qpm = stat_logger.getCount();
-    results_output = JSON.stringify(results);
+  function get_results(lang) {
+    var lang_result = get_lang(lang);
+    var min_timestamp = +new Date() - MAX_AGE;
+    if (lang_result.lastupdate < min_timestamp) {
+      lang_result.output = JSON.stringify( {latest: lang_result.latest, qpm:stat_logger.getCount()} );
+    }
+    return lang_result.output;
   }
 
-  makeOutput(); 
-  setInterval(makeOutput, 1000);
   setInterval(persist, 30 * 1000);
   return {get_results:get_results, add:add};
 }
@@ -133,7 +154,7 @@ var shares = (function(stat_logger) {
   }
   function latest(query) {
     query_logger.log(query);
-    return shares.get_results();
+    return shares.get_results(query.lang);
   }
   function invalid(url) {
     sys.puts('Invalid url: '+url);
