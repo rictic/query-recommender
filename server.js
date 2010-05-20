@@ -75,7 +75,8 @@ var share_logger = (function() {
 ////////////////////////////////
 var shares = (function(stat_logger) {
   var MAX_AGE    = 2 * 1000; // regenerate results if older than this
-  var spamFilter = /anonboard/;
+  var MAX_EXAMPLES = 20;     // number of search terms to return per language
+  var spamFilter = /anonboard/; //TODO: load this from disk
 
   var results = unpersist() || {
     lang : {
@@ -128,7 +129,7 @@ var shares = (function(stat_logger) {
     if (q.match(spamFilter)) { return; }
     var latest = get_lang(query.lang).latest;
     if (latest.indexOf(q) === -1) { latest.unshift(q); }     // we only want unique examples
-    while (latest.length > 7)     { latest.pop(); }          // we only want 7 examples
+    while (latest.length > MAX_EXAMPLES) { latest.pop(); }        
   }
 
 
@@ -170,7 +171,7 @@ var shares = (function(stat_logger) {
     try {
       var parts = url.parse(request.url, true);
       var query = parts.query || {};
-      query.lang = query.lang || (request.headers['accept-language']||'').split(',')[0].toLowerCase();
+      query.lang = query.lang || (request.headers['accept-language']||'').split(/,|;/)[0].toLowerCase();
       switch (parts.pathname) {
         case '/favicon.ico': break; // ignore
         case '/share':  output=share(query);  break;
