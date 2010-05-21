@@ -1,16 +1,23 @@
+anal
 anonboard
-blowjob
+blow\s*job
 boobs
 clit
 cock
+cum
+cunt
 dick
-fuck
-fucking
-gang bang
+fist\w+
+fuck\w*
+gang\s*bang
+horny
+masturbat\w*
 naked
 nude
+penetration
 penis
 pussy
 sex
+tits
 wank
 whore
