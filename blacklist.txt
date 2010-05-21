@@ -4,9 +4,12 @@ blow\s*job
 boobs
 clit
 cock
+condom
 cum
+cumshot
 cunt
 dick
+dildo
 fist\w+
 fuck\w*
 gang\s*bang
@@ -14,10 +17,14 @@ horny
 masturbat\w*
 naked
 nude
+orgasm
 penetration
 penis
+porn
 pussy
 sex
+slut
 tits
+vagina
 wank
 whore
