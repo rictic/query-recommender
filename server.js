@@ -190,7 +190,7 @@ var shares = (function(stat_logger) {
     },
     mem: null,       // nodejs mem usage
     reqs: {          // request counters
-      total:0, share:0, latest:0, old:0, stats:0, invalid:0
+      total:0, share:0, latest:0, old:0, dump:0, stats:0, invalid:0
     }
   };
   function share(query) {
@@ -222,6 +222,10 @@ var shares = (function(stat_logger) {
   function div(num,d,decimals) { // divde and return with x decimal places
     var scale = Math.pow(10,decimals||0);
     return Math.floor(scale*num/d)/scale;
+  }
+  function dumps(query) {
+    s.reqs.dump++;
+    return shares.dump(query.lastdump);
   }
   function stats(query) {
     s.reqs.stats++;
@@ -267,7 +271,7 @@ var shares = (function(stat_logger) {
         case '/favicon.ico': break; // ignore
         case '/share':  output=share(query);  break;
         case '/latest': output=latest(query); break;
-        case '/dump':   output=shares.dump(query.lastdump); break;
+        case '/dump':   output=dumps(query);  break;
         case '/stats':  output=stats(query);  break;
         case '/':       output=old(query);    break; // map old-style: TODO: remove once caches flush
         default: invalid(request.url);        break;
