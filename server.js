@@ -181,17 +181,31 @@ var shares = (function(stat_logger) {
 // log server  //
 /////////////////
 (function(share_logger,shares,query_logger) {
-
+  // server stats
+  var s = {
+    uptime: {
+      init: new Date().toLocaleString(),
+      t0:   +new Date(),
+      hour:0, min:0, sec:0
+    },
+    mem: null,       // nodejs mem usage
+    reqs: {          // request counters
+      total:0, share:0, latest:0, old:0, stats:0, invalid:0
+    }
+  };
   function share(query) {
+    s.reqs.share++;
     share_logger.log(query);
     shares.add(query);
     return '"SHARED"'; // dummy string
   }
   function latest(query) {
+    s.reqs.latest++;
     query_logger.log(query);
     return shares.get_results(query.lang);
   }
   function old(query) {
+    s.reqs.old++;
     if (query.q) { 
       if (DEBUG) { sys.puts('Got old style log '+query.q); }
       return latest(query);
@@ -205,7 +219,22 @@ var shares = (function(stat_logger) {
       return '"IGNORED"';
     }
   }
+  function div(num,d,decimals) { // divde and return with x decimal places
+    var scale = Math.pow(10,decimals||0);
+    return Math.floor(scale*num/d)/scale;
+  }
+  function stats(query) {
+    s.reqs.stats++;
+    var up = div(+new Date() - s.uptime.t0 , 1000);
+    s.uptime.sec  = up % 60;
+    s.uptime.min  = div(up,60) % 60;
+    s.uptime.hour = div(up,(60*60));
+    s.mem = process.memoryUsage();
+    for (var p in s.mem) { s.mem[p] = div(s.mem[p],(1024*1024), 1); } // convert to mb
+    return JSON.stringify(s,null,2);
+  }
   function invalid(url) {
+    s.reqs.invalid++;
     sys.puts('Invalid url: '+url);
   }
   function get_lang_from_header(override,headers) {
@@ -228,6 +257,7 @@ var shares = (function(stat_logger) {
     return lang; 
   }
   http.createServer(function (request, response) {
+    s.reqs.total++;
     var output;
     try {
       var parts = url.parse(request.url, true);
@@ -238,6 +268,7 @@ var shares = (function(stat_logger) {
         case '/share':  output=share(query);  break;
         case '/latest': output=latest(query); break;
         case '/dump':   output=shares.dump(query.lastdump); break;
+        case '/stats':  output=stats(query);  break;
         case '/':       output=old(query);    break; // map old-style: TODO: remove once caches flush
         default: invalid(request.url);        break;
       }
