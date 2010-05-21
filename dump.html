@@ -20,6 +20,18 @@
   #col1 { width:5em; }
   .lang { text-align:right; padding-right:1em; }
   #rates b { font-size:110%; }
+  tr.hot9 td.lang { color: #000; }
+  tr.hot8 td.lang { color: #222; }
+  tr.hot7 td.lang { color: #444; }
+  tr.hot6 td.lang { color: #666; }
+  tr.hot5 td.lang { color: #888; }
+  tr.hot4 td.lang { color: #999; }
+  tr.hot3 td.lang { color: #aaa; }
+  tr.hot2 td.lang { color: #bbb; }
+  tr.hot1 td.lang { color: #ccc; }
+  tr.hot0 td.lang { color: #fff; }
+  tr.hot0 { display:none; }
+  button { padding:3px; border:thin solid gray; margin:3px; cursor:pointer;}
   </style>
 </head>
 <body>
@@ -51,9 +63,10 @@
     </div>
 
     <div id="body">
+      <button id="showall">Show all languages</button>
       <table>
         <tr><th id="col1">Lang</th><th id="col2">Saved searches</th></tr>
-        <tr id="trow"><td class="lang"></td><td></td></tr>
+        <tr class="hot5"><td class="lang"></td><td></td></tr>
       </table>
     </div>
   </div>
@@ -81,11 +94,14 @@
         return padzero(d.getHours()) + ':' + padzero(d.getMinutes()) + ':' + padzero(d.getSeconds());
       }
 
+      $('#showall').click(function() {
+        $('tr[lcode]').attr('class','hot9');
+      });
       var timeout;
       var lastdump=0;
       function display_results(result) {
         timeout=null;
-        var lastdump = result.timestamp; delete result.timestamp;
+        lastdump = result.timestamp; delete result.timestamp;
         var qpm =result.qpm; delete result.qpm;
         $('#timestamp').text( format_timestamp(lastdump) );
         $('#qps').text( Math.round(10*qpm/60)/10 );
@@ -95,13 +111,15 @@
 
         $('.new',$table).removeClass('new');
         $('.old',$table).fadeOut(FADE_DELAY,function() { $(this).remove(); });
+        
+        // hot9 --> hot8, hot8-->hot7 etc (getting colder)
+        $('tr').attr('class',function(_,c) {
+          return c.replace(/hot(\d)/,function(_,level) { level--; if (level<0) { level=0; } return 'hot'+level; });
+        });
         for (var lcode in result) { //lcode = language code (en-gb, en-us, en)
           var newterms = result[lcode];
-          if (!(length in newterms)) {
-            //temp HACK: until dump is flushed completely to new style
-            continue;
-          }
           var $row = $table.find('tr[lcode='+lcode+']');
+          $row.attr('class','hot9');
           if (! $row.length) {
             $row = $template.clone();
             $row.attr('lcode',lcode);
