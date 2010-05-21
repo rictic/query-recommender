@@ -160,7 +160,9 @@ var shares = (function(stat_logger) {
       // check it's a valid results object
       if (!state.lang) { return null; }
       for (var lcode in state.lang) {
-        state.lang[lcode].latest = blacklist.filterlist(state.lang[lcode].latest);
+        var lang_result = state.lang[lcode];
+        lang_result.latest = blacklist.filterlist(lang_result.latest);
+        update_output(lang_result,+new Date()); // make sure output reflects any new filtering
       }
     } catch(e) {
       sys.puts('unpersist failure: '+e);
@@ -190,13 +192,16 @@ var shares = (function(stat_logger) {
     }
   }
   
+  function update_output(lang_result, timestamp) {
+    lang_result.lastupdate = timestamp;
+    lang_result.output = JSON.stringify( lang_result.latest );
+  }
   function update_lang_results(lang) {
     var lang_result = get_lang(lang);
     var timestamp = +new Date();
     var min_timestamp = timestamp - MAX_AGE;
     if (lang_result.lastupdate < min_timestamp) {
-      lang_result.lastupdate = timestamp;
-      lang_result.output = JSON.stringify( lang_result.latest );
+      update_output(lang_result,timestamp);
     }
   }
 
