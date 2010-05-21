@@ -77,7 +77,8 @@ var share_logger = (function() {
 var shares = (function(stat_logger) {
   var MAX_AGE    = 2 * 1000; // regenerate results if older than this
   var MAX_EXAMPLES = 20;     // number of search terms to return per language
-  var spamFilter = /anonboard/; //TODO: load this from disk
+  //TODO: load this from disk and make language specific
+  var spamFilter = /\b(anonboard|penis|sex|blowjob|pussy|dick|boobs|fuck|fucking|whore|bang)\b/i;
 
   var results = unpersist() || {
     lang : {
