@@ -1,6 +1,23 @@
 var sys = require('sys');
-var fs = require('fs')
-var f = fs.openSync('query.log','r');
+var fs = require('fs');
+
+var options = process_cmdline(process.ARGV,{
+  log:'../query.log',
+});
+
+
+function process_cmdline(args,defaults) {
+  for (var i=2; i<args.length; i++) {
+    var arg = args[i];
+    var r = /--(.+)=(.+)/.exec(arg);
+    if (!r || !r.length===2) { sys.puts('Invalid option '+arg); process.exit(1); }
+    defaults[r[1]]=r[2]; // extend defaults with key,val
+  }
+  return defaults;
+}
+
+
+var f = fs.openSync(option.log,'r');
 readFile(f)
 
 function readFile(f) {
