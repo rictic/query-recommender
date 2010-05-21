@@ -48,7 +48,7 @@ var query_logger = (function(stat_logger) {
   function log(query) {
     var timestamp = +new Date();
     stat_logger.update();
-    var message = [timestamp, query.q, query.lang].join('\t') + "\n";
+    var message = [timestamp, query.q, query.lang, query.v].join('\t') + "\n";
     if (DEBUG>2) { sys.print(QUERY_LOG + ': '+message); }
     fs.write(log_file, message, null, 'utf-8');
   }
@@ -62,7 +62,7 @@ var query_logger = (function(stat_logger) {
 var share_logger = (function() {
   var share_file = fs.openSync(SHARE_LOG, 'a+');
   function log(query) {
-    var message = [+new Date(), query.q, query.lang, query.gender, query.count, query.userid].join('\t') + '\n';
+    var message = [+new Date(), query.q, query.lang, query.gender, query.count, query.userid, query.v].join('\t') + '\n';
     if (DEBUG>1) { sys.print(SHARE_LOG + ': '+message); }
     fs.write(share_file, message, null, 'utf-8' );
   }
@@ -267,6 +267,7 @@ var shares = (function(stat_logger) {
       var parts = url.parse(request.url, true);
       var query = parts.query || {};
       query.lang = get_lang_from_header(query.lang||null,request.headers);
+      query.v    = query.v || 0; // client version
       switch (parts.pathname) {
         case '/favicon.ico': break; // ignore
         case '/share':  output=share(query);  break;
