@@ -83,17 +83,15 @@ var blacklist = (function() {
   function load_from_disk() {
     sys.puts('Blacklist: updating from '+BLACK_FILE);
     var list = ['fuck','cock','wank'];
-    fs.readFile(BLACK_FILE, 'utf8', function (err, data) {
-      if (err) {
-        sys.puts('Blacklist error: '+err);
-      } else {
-        list = data.split('\n');
-      }
-      // ignore #comment lines and empty lines 
-      var re_str = '\\b(?:' + list.filter(function(line) { return line.length && line.indexOf('#')!==0;}).sort().join('|') + ')\\b';
-      forbidden_re = new RegExp(re_str,'i');
-      if (DEBUG) { sys.puts('Blacklist: '+sys.inspect(forbidden_re)); }
-    });
+    try {
+      list = fs.readFileSync(BLACK_FILE, 'utf8').split('\n');
+    } catch (e) {
+      sys.puts('Blacklist error: '+e);
+    }
+    // ignore #comment lines and empty lines 
+    var re_str = '\\b(?:' + list.filter(function(line) { return line.length && line.indexOf('#')!==0;}).sort().join('|') + ')\\b';
+    forbidden_re = new RegExp(re_str,'i');
+    if (DEBUG) { sys.puts('Blacklist: '+sys.inspect(forbidden_re)); }
   }
 
   function contains(str) {
@@ -101,7 +99,10 @@ var blacklist = (function() {
     if (forbidden && DEBUG>2) { sys.puts('Blacklist: matched: '+str); }
     return forbidden;
   }
-  return {contains:contains};
+  function filterlist(list) {
+    return list.filter(function(str) { return !contains(str); });
+  }
+  return {contains:contains, filterlist:filterlist};
 }
 )();
 
@@ -118,7 +119,7 @@ var shares = (function(stat_logger) {
     }
   };
 
-  if (DEBUG) { sys.puts('Restored state: '+JSON.stringify(results,null,2)); }
+  if (DEBUG>1) { sys.puts('Restored state: '+JSON.stringify(results,null,2)); }
 
   function new_lang() {
     return {
@@ -157,7 +158,10 @@ var shares = (function(stat_logger) {
     try {
       state = JSON.parse(fs.readFileSync(STATE_FILE));
       // check it's a valid results object
-      if (!state.lang) { state=null; }
+      if (!state.lang) { return null; }
+      for (var lcode in state.lang) {
+        state.lang[lcode].latest = blacklist.filterlist(state.lang[lcode].latest);
+      }
     } catch(e) {
       sys.puts('unpersist failure: '+e);
     }
