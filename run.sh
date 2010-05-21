@@ -1,4 +1,5 @@
 #! /bin/sh
+rm -f error.log
 ps aux | grep node | grep -v grep
 if [ $? -eq -0 ]; then
   echo 'Node already running!'
