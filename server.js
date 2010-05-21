@@ -76,9 +76,14 @@ var share_logger = (function() {
 // Blacklist //     TODO:  make language specific
 ///////////////
 var blacklist = (function() {
-  var forbidden_re;
-  //fs.watchFile(BLACK_FILE, load_from_disk); // HACK: this always triggers
-  load_from_disk();
+  var forbidden_re = load_from_disk();
+
+  // check blacklist every 3s for changes
+  fs.watchFile(BLACK_FILE, {interval:3*1000}, function (curr, prev) {
+    if ( +curr.mtime !== +prev.mtime) {
+      forbidden_re = load_from_disk();
+    }
+  });
 
   function load_from_disk() {
     sys.puts('Blacklist: updating from '+BLACK_FILE);
@@ -90,8 +95,9 @@ var blacklist = (function() {
     }
     // ignore #comment lines and empty lines 
     var re_str = '\\b(?:' + list.filter(function(line) { return line.length && line.indexOf('#')!==0;}).sort().join('|') + ')\\b';
-    forbidden_re = new RegExp(re_str,'i');
-    if (DEBUG) { sys.puts('Blacklist: '+sys.inspect(forbidden_re)); }
+    var re = new RegExp(re_str,'i');
+    if (DEBUG) { sys.puts('Blacklist: '+sys.inspect(re)); }
+    return re;
   }
 
   function contains(str) {
