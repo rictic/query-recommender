@@ -8,6 +8,7 @@ var LOG_SERVER_PORT = 8000;    // for /latest?q=xxx&gender=any and /share?q=xxx&
 var QUERY_LOG  = 'query.log';  // every query run on our site
 var SHARE_LOG  = 'share.log';  // every query that's a candidate for recent searches
 var STATE_FILE = 'saved.json'; // persisted server state
+var BLACK_FILE = 'blacklist.txt';  // list of forbidden words
 
 // invoke with node server.js -debug=3 for max console logging
 var DEBUG=(function(arg) {
@@ -71,15 +72,46 @@ var share_logger = (function() {
 )();
 
 
+///////////////
+// Blacklist //     TODO:  make language specific
+///////////////
+var blacklist = (function() {
+  var forbidden_re;
+  //fs.watchFile(BLACK_FILE, load_from_disk); // HACK: this always triggers
+  load_from_disk();
+
+  function load_from_disk() {
+    sys.puts('Blacklist: updating from '+BLACK_FILE);
+    var list = ['fuck','cock','wank'];
+    fs.readFile(BLACK_FILE, 'utf8', function (err, data) {
+      if (err) {
+        sys.puts('Blacklist error: '+err);
+      } else {
+        list = data.split('\n');
+      }
+      // ignore #comment lines and empty lines 
+      var re_str = '\\b(?:' + list.filter(function(line) { return line.length && line.indexOf('#')!==0;}).sort().join('|') + ')\\b';
+      forbidden_re = new RegExp(re_str,'i');
+      if (DEBUG) { sys.puts('Blacklist: '+sys.inspect(forbidden_re)); }
+    });
+  }
+
+  function contains(str) {
+    var forbidden = str.match(forbidden_re);
+    if (forbidden && DEBUG>2) { sys.puts('Blacklist: matched: '+str); }
+    return forbidden;
+  }
+  return {contains:contains};
+}
+)();
+
+
 ////////////////////////////////
 // Maintain the latest shares //
 ////////////////////////////////
 var shares = (function(stat_logger) {
   var MAX_AGE    = 2 * 1000; // regenerate results if older than this
   var MAX_EXAMPLES = 20;     // number of search terms to return per language
-  //TODO: load this from disk and make language specific
-  var spamFilter = /\b(anonboard|penis|sex|blowjob|pussy|dick|boobs|fuck|fucking|whore|bang)\b/i;
-
   var results = unpersist() || {
     lang : {
       'en-us': new_lang()
@@ -143,7 +175,7 @@ var shares = (function(stat_logger) {
   // takes query: {q:'my dui',lang:'en-us',gender:'any',count:22,userid:1282899202} //TODO: handle the other args
   function add(query) {
     var q = query.q;
-    if (q.match(spamFilter)) { return; }
+    if (blacklist.contains(q)) { return; }
     var latest = get_lang(query.lang).latest;
     if (latest.indexOf(q) === -1) {          // we only want unique examples
       latest.unshift(q);
