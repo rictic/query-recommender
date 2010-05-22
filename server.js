@@ -5,6 +5,7 @@ var net  = require('net');
 var fs   = require('fs');
 
 var LOG_SERVER_PORT = 8000;    // for /latest?q=xxx&gender=any and /share?q=xxx&gender=any&count=11&userid=1058420149
+var BROADCASTER_PORT = 7000;   // for realtime stats
 var QUERY_LOG  = 'query.log';  // every query run on our site
 var SHARE_LOG  = 'share.log';  // every query that's a candidate for recent searches
 var STATE_FILE = 'saved.json'; // persisted server state
@@ -49,6 +50,13 @@ var query_logger = (function(stat_logger) {
   function log(query) {
     var timestamp = +new Date();
     stat_logger.update();
+    broadcaster.broadcast({
+      timestamp: timestamp, 
+      kind: "query", 
+      query: query.q, 
+      lang: query.lang, 
+      version: query.v
+    })
     var message = [timestamp, query.q, query.lang, query.v].join('\t') + "\n";
     if (DEBUG>2) { sys.print(QUERY_LOG + ': '+message); }
     fs.write(log_file, message, null, 'utf-8');
@@ -63,7 +71,17 @@ var query_logger = (function(stat_logger) {
 var share_logger = (function() {
   var share_file = fs.openSync(SHARE_LOG, 'a+');
   function log(query) {
-    var message = [+new Date(), query.q, query.lang, query.gender, query.count, query.userid, query.v].join('\t') + '\n';
+    var timestamp = +new Date();
+    broadcaster.broadcast({
+      timestamp: timestamp,
+      kind: "share",
+      query: query.q,
+      lang: query.lang,
+      gender: query.gender,
+      count: query.count,
+      userid: query.userid
+    })
+    var message = [timestamp, query.q, query.lang, query.gender, query.count, query.userid, query.v].join('\t') + '\n';
     if (DEBUG>1) { sys.print(SHARE_LOG + ': '+message); }
     fs.write(share_file, message, null, 'utf-8' );
   }
@@ -349,4 +367,42 @@ sys.puts('Log Server running on port '+LOG_SERVER_PORT);
 
 
 
+
+//////////////////
+//  broadcaster //
+//////////////////
+
+var broadcaster = (function() {
+  var clients = [];
+  net.createServer(function (stream) {
+    stream.setEncoding('utf8');
+    stream.addListener("error", function() {
+      clients = removeElement(clients, stream);
+      broadcast({kind: "broadcast:error", num_clients: clients.length});
+    });
+	  stream.addListener('close', function () {
+  	  clients = removeElement(clients, stream);
+  	  broadcast({kind: "broadcast:disconnect", num_clients: clients.length});
+  	});
+  	stream.addListener("connect", function() {
+  	  broadcast({kind: "broadcast:connect", num_clients: clients.length});
+  	  clients.push(stream);
+  	})
+  }).listen(7000);
+  function broadcast(object) {
+    var message = JSON.stringify(object) + "\n";
+    clients.forEach(function(client) {
+      client.write(message);
+    })
+  }
+
+  function removeElement(array, value) {
+    var i = array.indexOf(value);
+    if (i === -1)
+      return array;
+    return array.slice(0,i).concat(l.slice(i+i,l.length))
+  }
+
+  return {broadcast:broadcast}
+})();
 
