@@ -1,7 +1,7 @@
 var net = require('net')
 var sys = require('sys')
 
-var client = net.createConnection(7000, 'popular.youropenbook.org')
+var client = net.createConnection(7000, 'localhost')
 client.addListener('data', handleData)
 
 
@@ -9,8 +9,8 @@ var buffer = "";
 function handleData(data) {
   buffer += data;
   var match;
-  while(match = buffer.match(/(\d+)\t(.*?)\n/)) {
-    handleRecord(parseInt(match[1], 10), match[2])
+  while(match = buffer.match(/(.*?)\n/)) {
+    handleRecord(JSON.parse(match[1]))
     buffer = buffer.substring(match.index+match[0].length);
   }
 }
@@ -18,11 +18,11 @@ function handleData(data) {
 
 var records = [];
 var TIMEFRAME = 60; //in seconds
-function handleRecord(timestamp, query) {
+function handleRecord(record) {
   sys.print("\r                         \r")
-  sys.puts(query)
-  records.unshift(timestamp);
-  var recently = timestamp - TIMEFRAME * 1000;
+  sys.puts(record.query)
+  records.unshift(record.timestamp);
+  var recently = record.timestamp - TIMEFRAME * 1000;
   for (var i = records.length -1; ; i--) {
     if (records[i] >= recently)
       break
