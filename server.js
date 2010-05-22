@@ -56,7 +56,7 @@ var query_logger = (function(stat_logger) {
       query: query.q, 
       lang: query.lang, 
       version: query.v
-    })
+    });
     var message = [timestamp, query.q, query.lang, query.v].join('\t') + "\n";
     if (DEBUG>2) { sys.print(QUERY_LOG + ': '+message); }
     fs.write(log_file, message, null, 'utf-8');
@@ -80,7 +80,7 @@ var share_logger = (function() {
       gender: query.gender,
       count: query.count,
       userid: query.userid
-    })
+    });
     var message = [timestamp, query.q, query.lang, query.gender, query.count, query.userid, query.v].join('\t') + '\n';
     if (DEBUG>1) { sys.print(SHARE_LOG + ': '+message); }
     fs.write(share_file, message, null, 'utf-8' );
@@ -376,33 +376,42 @@ var broadcaster = (function() {
   var clients = [];
   net.createServer(function (stream) {
     stream.setEncoding('utf8');
-    stream.addListener("error", function() {
-      clients = removeElement(clients, stream);
+    stream.addListener("error", function(e) {
+      if (DEBUG) { sys.puts('\nbroadcaster: error: '+e); }
+      removeElement(clients, stream);
       broadcast({kind: "broadcast:error", num_clients: clients.length});
     });
 	  stream.addListener('close', function () {
-  	  clients = removeElement(clients, stream);
+      if (DEBUG) { sys.puts('\nbroadcaster: close'); }
+  	  removeElement(clients, stream);
   	  broadcast({kind: "broadcast:disconnect", num_clients: clients.length});
   	});
   	stream.addListener("connect", function() {
-  	  broadcast({kind: "broadcast:connect", num_clients: clients.length});
+  	  if (DEBUG) { sys.puts('\nbroadcaster: connect'); }
   	  clients.push(stream);
-  	})
-  }).listen(7000);
+      broadcast({kind: "broadcast:connect", num_clients: clients.length});
+  	});
+  }).listen(BROADCASTER_PORT);
+  sys.puts('Broadcaster running on port '+BROADCASTER_PORT);
   function broadcast(object) {
     var message = JSON.stringify(object) + "\n";
+    // for (var i=0;i<30000;i++) { message += ' '; } message += '\n'; // to flush buffers
     clients.forEach(function(client) {
-      client.write(message);
-    })
+      if (client.fd) {
+        client.write(message);
+      } // else: client has closed stream but Node didn't give us a 'close' event yet
+    });
   }
 
+  // does not preserve array order
   function removeElement(array, value) {
     var i = array.indexOf(value);
-    if (i === -1)
-      return array;
-    return array.slice(0,i).concat(l.slice(i+i,l.length))
+    if (i !== -1) {
+      array[i]=array[array.length-1];
+      array.length--;      
+    }
   }
 
-  return {broadcast:broadcast}
+  return {broadcast:broadcast};
 })();
 
