@@ -18,7 +18,7 @@
   td,th { vertical-align: middle;}
   td { border: 1px solid gray; padding:2px;}
   #col1 { width:5em; }
-  .lang { text-align:right; padding-right:1em; }
+  td.lang { text-align:center; padding-right:1em; line-height:15px;}
   #rates b { font-size:110%; }
   tr.hot9 td.lang { color: #000; }
   tr.hot8 td.lang { color: #222; }
@@ -124,7 +124,8 @@
           if (! $row.length) {
             $row = $template.clone();
             $row.attr('lcode',lcode);
-            $('td:eq(0)',$row).text(lcodeName(lcode));
+            var $lang = lcodeName(lcode);
+            $lang.appendTo($('td:eq(0)',$row));
             $row.appendTo($table);
           }
           var $latest = $('td:eq(1)',$row);
@@ -142,9 +143,11 @@
 
         function lcodeName(lcode) {
           var meta = parseLanguage(lcode);
-          if (!meta.language)
-            return lcode;
-          return meta.language + (meta.country ?" ("+meta.country+")":"")
+          var name = meta.language || lcode;
+          var $out = $('<span>',{title:lcode});
+          if (name)         {$('<b>',{text:name,        'class':'language'}).appendTo($out); }
+          if (meta.country) {$('<p>',{text:meta.country,'class':'country' }).appendTo($out); }
+          return $out;
         }
         // add any new terms
         $.each(newterms, function(_,term) {
