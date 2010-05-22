@@ -72,6 +72,7 @@
   </div>
 
   <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+  <script src="language.js" charset="utf-8"></script>
   <script>
   $(function() {
     var $table = $('table');
@@ -123,7 +124,7 @@
           if (! $row.length) {
             $row = $template.clone();
             $row.attr('lcode',lcode);
-            $('td:eq(0)',$row).text(lcode);
+            $('td:eq(0)',$row).text(lcodeName(lcode));
             $row.appendTo($table);
           }
           var $latest = $('td:eq(1)',$row);
@@ -138,6 +139,13 @@
           }
         });
 
+
+        function lcodeName(lcode) {
+          var meta = parseLanguage(lcode);
+          if (!meta.language)
+            return lcode;
+          return meta.language + (meta.country ?" ("+meta.country+")":"")
+        }
         // add any new terms
         $.each(newterms, function(_,term) {
           var $old_term = $old_terms.filter(function() { return $(this).attr('term')===term; });
