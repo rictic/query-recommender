@@ -229,11 +229,10 @@ var shares = (function(stat_logger) {
 }
 )(stats);
 
-/////////////////
-// log server  //
-/////////////////
-(function(share_logger,shares,query_logger) {
-  // server stats
+//////////////////
+// server stats //
+//////////////////
+var server_stats = (function(qstats) {
   var s = {
     uptime: {
       init: new Date().toLocaleString(),
@@ -245,19 +244,43 @@ var shares = (function(stat_logger) {
       total:0, share:0, latest:0, old:0, dump:0, stats:0, invalid:0
     }
   };
+  function increment(request_type) {
+    s.reqs[request_type]++;
+  }
+  function div(num,d,decimals) { // divde and return with x decimal places
+    var scale = Math.pow(10,decimals||0);
+    return Math.floor(scale*num/d)/scale;
+  }
+  function get() {
+    s.qpm = qstats.getCount();
+    var up = div(+new Date() - s.uptime.t0 , 1000);
+    s.uptime.sec  = up % 60;
+    s.uptime.min  = div(up,60) % 60;
+    s.uptime.hour = div(up,(60*60));
+    s.mem = process.memoryUsage();
+    for (var p in s.mem) { s.mem[p] = div(s.mem[p],(1024*1024), 1); } // convert to mb
+    return s;
+  }
+  return {get:get,increment:increment};
+})(stats);
+
+/////////////////
+// log server  //
+/////////////////
+(function(share_logger,shares,query_logger,s) {
   function share(query) {
-    s.reqs.share++;
+    s.increment('share');
     share_logger.log(query);
     shares.add(query);
     return '"SHARED"'; // dummy string
   }
   function latest(query) {
-    s.reqs.latest++;
+    s.increment('latest');
     query_logger.log(query);
     return shares.get_results(query.lang);
   }
   function old(query) {
-    s.reqs.old++;
+    s.increment('old');
     if (query.q) { 
       if (DEBUG) { sys.puts('Got old style log '+query.q); }
       return latest(query);
@@ -271,26 +294,16 @@ var shares = (function(stat_logger) {
       return '"IGNORED"';
     }
   }
-  function div(num,d,decimals) { // divde and return with x decimal places
-    var scale = Math.pow(10,decimals||0);
-    return Math.floor(scale*num/d)/scale;
-  }
   function dumps(query) {
-    s.reqs.dump++;
+    s.increment('dump');
     return shares.dump(query.lastdump);
   }
   function stats(query) {
-    s.reqs.stats++;
-    var up = div(+new Date() - s.uptime.t0 , 1000);
-    s.uptime.sec  = up % 60;
-    s.uptime.min  = div(up,60) % 60;
-    s.uptime.hour = div(up,(60*60));
-    s.mem = process.memoryUsage();
-    for (var p in s.mem) { s.mem[p] = div(s.mem[p],(1024*1024), 1); } // convert to mb
-    return JSON.stringify(s,null,2);
+    s.increment('stats');
+    return JSON.stringify(s.get(),null,2);
   }
   function invalid(url) {
-    s.reqs.invalid++;
+    s.increment('invalid');
     sys.puts('Invalid url: '+url);
   }
   function get_lang_from_header(override,headers) {
@@ -313,7 +326,7 @@ var shares = (function(stat_logger) {
     return lang; 
   }
   http.createServer(function (request, response) {
-    s.reqs.total++;
+    s.increment('total');
     var output;
     try {
       var parts = url.parse(request.url, true);
@@ -349,7 +362,7 @@ var shares = (function(stat_logger) {
 sys.puts('Log Server running on port '+LOG_SERVER_PORT);
 
 }
-)(share_logger,shares,query_logger);
+)(share_logger,shares,query_logger,server_stats);
 
 
 
@@ -358,34 +371,57 @@ sys.puts('Log Server running on port '+LOG_SERVER_PORT);
 //  broadcaster //
 //////////////////
 
-var broadcaster = (function() {
+var broadcaster = (function(s) {
   var clients = [];
   net.createServer(function (stream) {
     stream.setEncoding('utf8');
     stream.addListener("error", function(e) {
       if (DEBUG) { sys.puts('broadcaster: error: '+e); }
       removeElement(clients, stream);
-      broadcast({kind: "broadcast:error", num_clients: clients.length});
+      broadcast("broadcast:error", {num_clients: clients.length});
     });
 	  stream.addListener('close', function () {
       if (DEBUG) { sys.puts('broadcaster: close'); }
   	  removeElement(clients, stream);
-  	  broadcast({kind: "broadcast:disconnect", num_clients: clients.length});
+  	  broadcast("broadcast:disconnect", {num_clients: clients.length});
   	});
   	stream.addListener("connect", function() {
   	  if (DEBUG) { sys.puts('broadcaster: connect'); }
+  	  // send the stats immediately to the new client (and flush the stream buffer)
+  	  broadcast('stats',s.get(),[stream],true);
   	  clients.push(stream);
-      broadcast({kind: "broadcast:connect", num_clients: clients.length});
+      broadcast("broadcast:connect", {num_clients: clients.length});
   	});
   }).listen(BROADCASTER_PORT);
+
   sys.puts('Broadcaster running on port '+BROADCASTER_PORT);
-  function broadcast(object) {
-    var message = JSON.stringify(object) + "\n";
-    // for (var i=0;i<30000;i++) { message += ' '; } message += '\n'; // to flush buffers
-    clients.forEach(function(client) {
+
+  function broadcast(kind,object,client_list,flush) {
+    var message='';
+    client_list = client_list || clients;
+    
+    var out = {
+      t: +new Date(),         // all outgoing msgs have a timestamp
+      kind: kind              // and a category
+    };
+    for (var p in object) {
+      out[p] = object[p];     // shallow copy object to be sent
+    }
+    
+    // a browser won't see anything on connect unless we flush the buffer 
+    if (flush) {
+      for (var i=0;i<1000;i++) { message += ' '; }
+      message += '\n';
+    }
+    
+    message += JSON.stringify(out) + "\n";
+
+    // sent to all clients
+    client_list.forEach(function(client) {
+      // test to see if the stream has closed (this can happen before the 'close' event arrives)
       if (client.fd) {
         client.write(message);
-      } // else: client has closed stream but Node didn't give us a 'close' event yet
+      }
     });
   }
 
@@ -397,7 +433,7 @@ var broadcaster = (function() {
       array.length--;      
     }
   }
-
+  setInterval(function() { broadcast('stats',s.get() ); },10*1000); // broadcast stats regularly
   return {broadcast:broadcast};
-})();
+})(server_stats);
 
