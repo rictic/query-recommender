@@ -97,7 +97,7 @@ var blacklist = (function() {
     } catch (e) {
       sys.puts('Blacklist error: '+e);
     }
-    // ignore #comment lines and empty lines 
+    // ignore #comment lines and empty lines
     var re_str = '\\b(?:' + list.filter(function(line) { return line.length && line.indexOf('#')!==0;}).sort().join('|') + ')\\b';
     var re = new RegExp(re_str,'i');
     if (DEBUG) { sys.puts('Blacklist: '+sys.inspect(re)); }
@@ -149,7 +149,7 @@ var shares = (function(stat_logger) {
     for (var lcode in results.lang) {
       var lang_result = results.lang[lcode];
       var output = lang_result.output;
-      if (output && lang_result.lastupdate > lastdump) { 
+      if (output && lang_result.lastupdate > lastdump) {
         out.push( JSON.stringify(lcode) + ':' + output );
       }
     }
@@ -197,11 +197,11 @@ var shares = (function(stat_logger) {
       latest.unshift(q);
       while (latest.length > MAX_EXAMPLES) { // limit the number of examples
         latest.pop();
-      } 
+      }
       update_lang_results(query.lang);
     }
   }
-  
+
   function update_output(lang_result, timestamp) {
     lang_result.lastupdate = timestamp;
     lang_result.output = JSON.stringify( lang_result.latest );
@@ -262,104 +262,104 @@ var server_stats = (function(qstats) {
     return s;
   }
   return {get:get,increment:increment};
-})(stats);
+  })(stats);
 
-/////////////////
-// log server  //
-/////////////////
-(function(share_logger,shares,query_logger,s) {
-  function share(query) {
-    s.increment('share');
-    share_logger.log(query);
-    shares.add(query);
-    return '"SHARED"'; // dummy string
-  }
-  function latest(query) {
-    s.increment('latest');
-    query_logger.log(query);
-    return shares.get_results(query.lang);
-  }
-  function old(query) {
-    s.increment('old');
-    if (query.q) { 
-      if (DEBUG) { sys.puts('Got old style log '+query.q); }
-      return latest(query);
+  /////////////////
+  // log server  //
+  /////////////////
+  (function(share_logger,shares,query_logger,s) {
+    function share(query) {
+      s.increment('share');
+      share_logger.log(query);
+      shares.add(query);
+      return '"SHARED"'; // dummy string
     }
-    else if (query.share) {
-      if (DEBUG) { sys.puts('Ignore old style share: '+query.share); }
-      return '"IGNORED SHARE"';
-    } 
-    else  {
-      sys.puts('Invalid url');
-      return '"IGNORED"';
+    function latest(query) {
+      s.increment('latest');
+      query_logger.log(query);
+      return shares.get_results(query.lang);
     }
-  }
-  function dumps(query) {
-    s.increment('dump');
-    return shares.dump(query.lastdump);
-  }
-  function stats(query) {
-    s.increment('stats');
-    return JSON.stringify(s.get(),null,2);
-  }
-  function invalid(url) {
-    s.increment('invalid');
-    sys.puts('Invalid url: '+url);
-  }
-  function get_lang_from_header(override,headers) {
-    var lang = '??', accept;
-    if (override) { accept = override; }
-    else if ('accept-language' in headers) {
-      accept  = headers['accept-language'].toLowerCase();
-    } else {
-      //  Firefox sometimes doesn't send accept-language
-      if (DEBUG>2) { sys.puts('accept-language not in headers: '+sys.inspect(headers)); }
-    }
-    if (accept) {
-      var bits = accept.split(/,|;/);
-      if (bits.length && (/^\w+(-\w+)?$/.test(bits[0]))) {
-        lang = bits[0];
-      } else {
-        if (DEBUG) { sys.puts('accept-language could not parse: '+accept); }
-      } 
-    }
-    return lang; 
-  }
-  http.createServer(function (request, response) {
-    s.increment('total');
-    var output;
-    try {
-      var parts = url.parse(request.url, true);
-      var query = parts.query || {};
-      query.lang = get_lang_from_header(query.lang||null,request.headers);
-      query.v    = query.v || 0; // client version
-      switch (parts.pathname) {
-        case '/favicon.ico': break; // ignore
-        case '/share':  output=share(query);  break;
-        case '/latest': output=latest(query); break;
-        case '/dump':   output=dumps(query);  break;
-        case '/stats':  output=stats(query);  break;
-        case '/':       output=old(query);    break; // map old-style: TODO: remove once caches flush
-        default: invalid(request.url);        break;
+    function old(query) {
+      s.increment('old');
+      if (query.q) {
+        if (DEBUG) { sys.puts('Got old style log '+query.q); }
+        return latest(query);
       }
-    } catch(e) {
-      output=+new Date()+': Internal Err: '+e+'  URL='+request.url;
-      sys.puts(output);
+      else if (query.share) {
+        if (DEBUG) { sys.puts('Ignore old style share: '+query.share); }
+        return '"IGNORED SHARE"';
+      }
+      else  {
+        sys.puts('Invalid url');
+        return '"IGNORED"';
+      }
     }
-    // TODO: 404s?
-    response.writeHead(200, {
-      'Content-Type'  : query.callback ? 'text/javascript' : 'text/plain',
-      'Cache-Control' : 'no-cache, must-revalidate',
-      'Pragma'        : 'no-cache'
-    });
-    if (query.callback) {
-      output = query.callback + "(" + output + ")";
+    function dumps(query) {
+      s.increment('dump');
+      return shares.dump(query.lastdump);
     }
-    response.end(output);
-  }
-).listen(LOG_SERVER_PORT, '0.0.0.0');
+    function stats(query) {
+      s.increment('stats');
+      return JSON.stringify(s.get(),null,2);
+    }
+    function invalid(url) {
+      s.increment('invalid');
+      sys.puts('Invalid url: '+url);
+    }
+    function get_lang_from_header(override,headers) {
+      var lang = '??', accept;
+      if (override) { accept = override; }
+      else if ('accept-language' in headers) {
+        accept  = headers['accept-language'].toLowerCase();
+      } else {
+        //  Firefox sometimes doesn't send accept-language
+        if (DEBUG>2) { sys.puts('accept-language not in headers: '+sys.inspect(headers)); }
+      }
+      if (accept) {
+        var bits = accept.split(/,|;/);
+        if (bits.length && (/^\w+(-\w+)?$/.test(bits[0]))) {
+          lang = bits[0];
+        } else {
+          if (DEBUG) { sys.puts('accept-language could not parse: '+accept); }
+        }
+      }
+      return lang;
+    }
+    http.createServer(function (request, response) {
+      s.increment('total');
+      var output;
+      try {
+        var parts = url.parse(request.url, true);
+        var query = parts.query || {};
+        query.lang = get_lang_from_header(query.lang||null,request.headers);
+        query.v    = query.v || 0; // client version
+        switch (parts.pathname) {
+          case '/favicon.ico': break; // ignore
+          case '/share':  output=share(query);  break;
+          case '/latest': output=latest(query); break;
+          case '/dump':   output=dumps(query);  break;
+          case '/stats':  output=stats(query);  break;
+          case '/':       output=old(query);    break; // map old-style: TODO: remove once caches flush
+          default: invalid(request.url);        break;
+        }
+      } catch(e) {
+        output=+new Date()+': Internal Err: '+e+'  URL='+request.url;
+        sys.puts(output);
+      }
+      // TODO: 404s?
+      response.writeHead(200, {
+        'Content-Type'  : query.callback ? 'text/javascript' : 'text/plain',
+        'Cache-Control' : 'no-cache, must-revalidate',
+        'Pragma'        : 'no-cache'
+      });
+      if (query.callback) {
+        output = query.callback + "(" + output + ")";
+      }
+      response.end(output);
+    }
+  ).listen(LOG_SERVER_PORT, '0.0.0.0');
 
-sys.puts('Log Server running on port '+LOG_SERVER_PORT);
+  sys.puts('Log Server running on port '+LOG_SERVER_PORT);
 
 }
 )(share_logger,shares,query_logger,server_stats);
@@ -380,18 +380,18 @@ var broadcaster = (function(s) {
       broadcast("broadcast:error", {num_clients: clients.length});
       if (DEBUG) { sys.puts('broadcaster: error: '+e+' num_clients='+clients.length); }
     });
-	  stream.addListener('close', function () {
-  	  removeElement(clients, stream);
-  	  broadcast("broadcast:disconnect", {num_clients: clients.length});
+    stream.addListener('close', function () {
+      removeElement(clients, stream);
+      broadcast("broadcast:disconnect", {num_clients: clients.length});
       if (DEBUG) { sys.puts('broadcaster: close. num_clients='+clients.length); }
-  	});
-  	stream.addListener("connect", function() {
-  	  // send the stats immediately to the new client (and flush the stream buffer)
-  	  broadcast('stats',s.get(),[stream],true);
-  	  clients.push(stream);
+    });
+    stream.addListener("connect", function() {
+      // send the stats immediately to the new client (and flush the stream buffer)
+      broadcast('stats',s.get(),[stream],true);
+      clients.push(stream);
       broadcast("broadcast:connect", {num_clients: clients.length});
       if (DEBUG) { sys.puts('broadcaster: connect. num_clients='+clients.length); }
-  	});
+    });
   }).listen(BROADCASTER_PORT);
 
   sys.puts('Broadcaster running on port '+BROADCASTER_PORT);
@@ -399,7 +399,7 @@ var broadcaster = (function(s) {
   function broadcast(kind,object,client_list,flush) {
     var message='';
     client_list = client_list || clients;
-    
+
     var out = {
       t: +new Date(),         // all outgoing msgs have a timestamp
       kind: kind              // and a category
@@ -407,13 +407,13 @@ var broadcaster = (function(s) {
     for (var p in object) {
       out[p] = object[p];     // shallow copy object to be sent
     }
-    
-    // a browser won't see anything on connect unless we flush the buffer 
+
+    // a browser won't see anything on connect unless we flush the buffer
     if (flush) {
       for (var i=0;i<1000;i++) { message += ' '; }
       message += '\n';
     }
-    
+
     message += JSON.stringify(out) + "\n";
 
     // sent to all clients
@@ -430,10 +430,12 @@ var broadcaster = (function(s) {
     var i = array.indexOf(value);
     if (i !== -1) {
       array[i]=array[array.length-1];
-      array.length--;      
+      array.length--;
     }
   }
   setInterval(function() { broadcast('stats',s.get() ); },10*1000); // broadcast stats regularly
   return {broadcast:broadcast};
-})(server_stats);
+}
+)(server_stats);
+
 
