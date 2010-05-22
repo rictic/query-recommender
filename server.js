@@ -302,9 +302,9 @@ var server_stats = (function(qstats) {
       s.increment('stats');
       return JSON.stringify(s.get(),null,2);
     }
-    function invalid(url) {
+    function invalid(request) {
       s.increment('invalid');
-      sys.puts('Invalid url: '+url);
+      sys.puts('Invalid url: '+request.url+'  from referrer: '+ (request.headers.referer||'??') + ' user-agent:'+ (request.headers['user-agent']||'??') );
     }
     function get_lang_from_header(override,headers) {
       var lang = '??', accept;
@@ -340,7 +340,7 @@ var server_stats = (function(qstats) {
           case '/dump':   output=dumps(query);  break;
           case '/stats':  output=stats(query);  break;
           case '/':       output=old(query);    break; // map old-style: TODO: remove once caches flush
-          default: invalid(request.url);        break;
+          default: invalid(request);            break;
         }
       } catch(e) {
         output=+new Date()+': Internal Err: '+e+'  URL='+request.url;
