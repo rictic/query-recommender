@@ -50,13 +50,7 @@ var query_logger = (function(stat_logger) {
   function log(query) {
     var timestamp = +new Date();
     stat_logger.update();
-    broadcaster.broadcast({
-      timestamp: timestamp, 
-      kind: "query", 
-      query: query.q, 
-      lang: query.lang, 
-      version: query.v
-    });
+    broadcaster.broadcast( {t:timestamp,  k:"query", q:query.q, l:query.lang, v:query.v} );
     var message = [timestamp, query.q, query.lang, query.v].join('\t') + "\n";
     if (DEBUG>2) { sys.print(QUERY_LOG + ': '+message); }
     fs.write(log_file, message, null, 'utf-8');
@@ -72,15 +66,7 @@ var share_logger = (function() {
   var share_file = fs.openSync(SHARE_LOG, 'a+');
   function log(query) {
     var timestamp = +new Date();
-    broadcaster.broadcast({
-      timestamp: timestamp,
-      kind: "share",
-      query: query.q,
-      lang: query.lang,
-      gender: query.gender,
-      count: query.count,
-      userid: query.userid
-    });
+    broadcaster.broadcast({ t: timestamp, k: "share", q: query.q, l: query.lang, g: query.gender, c: query.count, u: query.userid });
     var message = [timestamp, query.q, query.lang, query.gender, query.count, query.userid, query.v].join('\t') + '\n';
     if (DEBUG>1) { sys.print(SHARE_LOG + ': '+message); }
     fs.write(share_file, message, null, 'utf-8' );
@@ -377,17 +363,17 @@ var broadcaster = (function() {
   net.createServer(function (stream) {
     stream.setEncoding('utf8');
     stream.addListener("error", function(e) {
-      if (DEBUG) { sys.puts('\nbroadcaster: error: '+e); }
+      if (DEBUG) { sys.puts('broadcaster: error: '+e); }
       removeElement(clients, stream);
       broadcast({kind: "broadcast:error", num_clients: clients.length});
     });
 	  stream.addListener('close', function () {
-      if (DEBUG) { sys.puts('\nbroadcaster: close'); }
+      if (DEBUG) { sys.puts('broadcaster: close'); }
   	  removeElement(clients, stream);
   	  broadcast({kind: "broadcast:disconnect", num_clients: clients.length});
   	});
   	stream.addListener("connect", function() {
-  	  if (DEBUG) { sys.puts('\nbroadcaster: connect'); }
+  	  if (DEBUG) { sys.puts('broadcaster: connect'); }
   	  clients.push(stream);
       broadcast({kind: "broadcast:connect", num_clients: clients.length});
   	});
