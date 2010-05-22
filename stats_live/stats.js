@@ -1,7 +1,7 @@
 var net = require('net')
 var sys = require('sys')
 
-var client = net.createConnection(7000, 'localhost')
+var client = net.createConnection(7000, 'popular.youropenbook.org')
 client.addListener('data', handleData)
 
 
