@@ -376,21 +376,21 @@ var broadcaster = (function(s) {
   net.createServer(function (stream) {
     stream.setEncoding('utf8');
     stream.addListener("error", function(e) {
-      if (DEBUG) { sys.puts('broadcaster: error: '+e); }
       removeElement(clients, stream);
       broadcast("broadcast:error", {num_clients: clients.length});
+      if (DEBUG) { sys.puts('broadcaster: error: '+e+' num_clients='+clients.length); }
     });
 	  stream.addListener('close', function () {
-      if (DEBUG) { sys.puts('broadcaster: close'); }
   	  removeElement(clients, stream);
   	  broadcast("broadcast:disconnect", {num_clients: clients.length});
+      if (DEBUG) { sys.puts('broadcaster: close. num_clients='+clients.length); }
   	});
   	stream.addListener("connect", function() {
-  	  if (DEBUG) { sys.puts('broadcaster: connect'); }
   	  // send the stats immediately to the new client (and flush the stream buffer)
   	  broadcast('stats',s.get(),[stream],true);
   	  clients.push(stream);
       broadcast("broadcast:connect", {num_clients: clients.length});
+      if (DEBUG) { sys.puts('broadcaster: connect. num_clients='+clients.length); }
   	});
   }).listen(BROADCASTER_PORT);
 
