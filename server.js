@@ -302,9 +302,14 @@ var server_stats = (function(qstats) {
       s.increment('stats');
       return JSON.stringify(s.get(),null,2);
     }
+    function reqToString(request) {
+      return 'remoteAddress:'+request.socket.remoteAddress +
+      ' referrer:'  + (request.headers['referer']   ||'??') + 
+      ' user-agent:'+ (request.headers['user-agent']||'??');
+    }
     function invalid(request) {
       s.increment('invalid');
-      sys.puts('Invalid url: '+request.url+'  from referrer: '+ (request.headers.referer||'??') + ' user-agent:'+ (request.headers['user-agent']||'??') );
+      sys.puts('Invalid url: '+request.url+'  from  '+reqToString(request));
     }
     function get_lang_from_header(override,headers) {
       var lang = '??', accept;
@@ -327,6 +332,7 @@ var server_stats = (function(qstats) {
     }
     http.createServer(function (request, response) {
       s.increment('total');
+      if (DEBUG>3) { sys.puts('request: '+reqToString(request)); }
       var output;
       try {
         var parts = url.parse(request.url, true);
