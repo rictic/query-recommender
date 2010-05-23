@@ -257,8 +257,8 @@ var server_stats = (function(qstats) {
     s.uptime.sec  = up % 60;
     s.uptime.min  = div(up,60) % 60;
     s.uptime.hour = div(up,(60*60));
-    s.mem = process.memoryUsage();
-    for (var p in s.mem) { s.mem[p] = div(s.mem[p],(1024*1024), 1); } // convert to mb
+    //disabled: s.mem = process.memoryUsage();
+    //disabled: for (var p in s.mem) { s.mem[p] = div(s.mem[p],(1024*1024), 1); } // convert to mb
     return s;
   }
   return {get:get,increment:increment};
