@@ -1,7 +1,7 @@
 anal
 anonboard
 blow\s*job
-boobs
+boob\w+
 clit
 cock
 condom
@@ -10,12 +10,15 @@ cumshot
 cunt
 dick
 dildo
+fellatio
+fingering
 fist\w+
 fuck\w*
 gang\s*bang
 horny
-masturbat\w*
+mast\wrbat\w*
 naked
+nipple\w+
 nude
 orgasm
 penetration
@@ -24,8 +27,10 @@ porn
 pussy
 sex
 slut
+sperm
 tits
+underage
+upskirt
 vagina
 wank
 whore
-sperm
