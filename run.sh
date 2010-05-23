@@ -1,10 +1,12 @@
 #! /bin/sh
 ARGS=$*
-PID=`ps -eo pid,args | grep node | grep -v grep | cut -c1-6`
+PID=`ps -Ao pid,command | grep node | grep -v grep | cut -c1-6`
 if [ -n "$PID" ]; then
   echo
-  echo 'Node already running! Press return to kill'
-  ps -e | grep node | grep -v grep
+  echo "Node already running on --- $HOSTNAME ----"
+  ps -A | grep node | grep -v grep
+  echo
+  echo "Press return to kill node"
   read dummy
   /bin/kill $PID
   if [ "$?" -ne "0" ]; then
@@ -18,6 +20,8 @@ echo
 echo "Starting node"
 rm -f error.log
 nohup node server.js $ARGS > error.log &
+sleep 1
+cat error.log
 echo 
 echo "try running"
 echo "    tail -F error.log"
