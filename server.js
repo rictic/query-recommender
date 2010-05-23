@@ -341,7 +341,7 @@ var server_stats = (function(qstats) {
       var error;
       var output;
       if (DEBUG>3) { sys.puts('request: '+reqToString(request)); }
-      if (request.headers['referer'] && request.headers['referer'].indexOf('http://faceopenbook.com' === 0)) {
+      if (request.headers['referer'] && request.headers['referer'].indexOf('http://faceopenbook.com') === 0) {
           return write_404(response,"Hey, how about crediting us for the code?");
       }
 
