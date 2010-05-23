@@ -330,10 +330,21 @@ var server_stats = (function(qstats) {
       }
       return lang;
     }
+    function write_404(response,msg) {
+      response.writeHead(404);
+      if (DEBUG) { sys.puts('write_404: '+msg); }
+      response.end(msg);
+      return null;
+    }
     http.createServer(function (request, response) {
       s.increment('total');
-      if (DEBUG>3) { sys.puts('request: '+reqToString(request)); }
+      var error;
       var output;
+      if (DEBUG>3) { sys.puts('request: '+reqToString(request)); }
+      if (request.headers['referer'] && request.headers['referer'].indexOf('http://faceopenbook.com' === 0)) {
+          return write_404(response,"Hey, how about crediting us for the code?");
+      }
+
       try {
         var parts = url.parse(request.url, true);
         var query = parts.query || {};
@@ -349,10 +360,8 @@ var server_stats = (function(qstats) {
           default: invalid(request);            break;
         }
       } catch(e) {
-        output=+new Date()+': Internal Err: '+e+'  URL='+request.url;
-        sys.puts(output);
+        return write_404(response, +new Date()+': Internal Err: '+e+'  URL='+request.url);
       }
-      // TODO: 404s?
       response.writeHead(200, {
         'Content-Type'  : query.callback ? 'text/javascript' : 'text/plain',
         'Cache-Control' : 'no-cache, must-revalidate',
@@ -362,6 +371,7 @@ var server_stats = (function(qstats) {
         output = query.callback + "(" + output + ")";
       }
       response.end(output);
+      return null; // for jslint
     }
   ).listen(LOG_SERVER_PORT, '0.0.0.0');
 
