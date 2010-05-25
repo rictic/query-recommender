@@ -50,7 +50,7 @@ var query_logger = (function(stat_logger) {
   function log(query) {
     var timestamp = +new Date();
     stat_logger.update();
-    broadcaster.broadcast( {t:timestamp,  k:"query", q:query.q, l:query.lang, v:query.v} );
+    broadcaster.broadcast("query", {t:timestamp, q:query.q, l:query.lang, v:query.v} );
     var message = [timestamp, query.q, query.lang, query.v].join('\t') + "\n";
     if (DEBUG>2) { sys.print(QUERY_LOG + ': '+message); }
     fs.write(log_file, message, null, 'utf-8');
@@ -66,7 +66,7 @@ var share_logger = (function() {
   var share_file = fs.openSync(SHARE_LOG, 'a+');
   function log(query) {
     var timestamp = +new Date();
-    broadcaster.broadcast({ t: timestamp, k: "share", q: query.q, l: query.lang, g: query.gender, c: query.count, u: query.userid });
+    broadcaster.broadcast("share", { t: timestamp, q: query.q, l: query.lang, g: query.gender, c: query.count, u: query.userid });
     var message = [timestamp, query.q, query.lang, query.gender, query.count, query.userid, query.v].join('\t') + '\n';
     if (DEBUG>1) { sys.print(SHARE_LOG + ': '+message); }
     fs.write(share_file, message, null, 'utf-8' );
