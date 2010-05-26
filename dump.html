@@ -118,6 +118,10 @@
           return c.replace(/hot(\d)/,function(_,level) { level--; if (level<0) { level=0; } return 'hot'+level; });
         });
         for (var lcode in result) { //lcode = language code (en-gb, en-us, en)
+          if (/\s|;/.test(lcode)) {
+            console.warn('Ignoring language code from server '+lcode);
+            continue;
+          }
           var newterms = result[lcode];
           var $row = $table.find('tr[lcode='+lcode+']');
           $row.attr('class','hot9');
