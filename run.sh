@@ -1,5 +1,6 @@
 #! /bin/sh
 ARGS=$*
+LOG=logs/error.log
 PID=`ps -Ao pid,command | grep node | grep -v grep | cut -c1-6`
 if [ -n "$PID" ]; then
   echo
@@ -11,6 +12,8 @@ if [ -n "$PID" ]; then
   /bin/kill $PID
   if [ "$?" -ne "0" ]; then
     echo 'Failed to kill node. Stopping'
+    echo "try:"
+    echo "sudo kill $PID"
     exit 1
   fi
   echo "Waiting for node to die"
@@ -18,11 +21,13 @@ if [ -n "$PID" ]; then
 fi
 echo
 echo "Starting node"
-rm -f error.log
-nohup node server.js $ARGS > error.log &
+if [ -f $LOG ]; then
+  mv $LOG logs/error-`date +%s`.log
+fi
+nohup node server.js $ARGS > $LOG &
 sleep 1
-cat error.log
+cat $LOG
 echo 
 echo "try running"
-echo "    tail -F error.log"
+echo "    tail -F $LOG"
 
