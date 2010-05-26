@@ -345,8 +345,10 @@ var server_stats = (function(qstats) {
       var error;
       var output;
       if (DEBUG>3) { sys.puts('request: '+reqToString(request)); }
-      if (request.headers['referer'] && request.headers['referer'].indexOf('http://faceopenbook.com' === 0)) {
-          return write_404(response,"Hey, how about crediting us for the code?");
+      var our_site = /^http:\/\/(([a-zA-Z_\.]*?)\.)?youropenbook.org/;
+      if (request.headers.referer && !our_site.test(request.headers.referer)) {
+        broadcaster.broadcast("copycat", {referer: request.headers.referer, request_string: reqToString});
+        return response.end("{}");
       }
 
       try {
