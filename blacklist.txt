@@ -1,9 +1,9 @@
 anal
 anonboard
-blow\s*job
+blow\s*jobs?
 boob\w+
 clit
-cock
+cocks?
 condom
 cum
 cumshot
@@ -11,7 +11,7 @@ cunt
 dick
 dildo
 fellatio
-fingering
+finger(ed|ing)
 fist\w+
 fuck\w*
 gang\s*bang
@@ -21,6 +21,7 @@ naked
 nipple\w+
 nude
 orgasm
+panties
 penetration
 penis
 porn
