@@ -314,6 +314,7 @@ var server_stats = (function(qstats) {
     }
     function internal_error(request, e) {
       broadcaster.broadcast("internal error", {url: request.url, message: e.message, stack: e.stack, request_string: reqToString(request)});
+      sys.puts("INTERNAL ERROR: " + e.stack || e.message);
     }
     function get_lang_from_header(override,headers) {
       var lang = '??', accept;
@@ -367,7 +368,9 @@ var server_stats = (function(qstats) {
         }
       } catch(e) {
         internal_error(request, e);
-        return write_404(response, +new Date()+': Internal Err: '+e+'  URL='+request.url);
+        response.writeHead(500);
+        response.end("Internal error.");
+        return;
       }
       response.writeHead(200, {
         'Content-Type'  : query.callback ? 'text/javascript' : 'text/plain',
