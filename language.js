@@ -1,11 +1,14 @@
 function parseLanguage(code) {
-  var match = code.match(/^\s*(.*?)(-(.*))?\s*$/);
-  if (!match) { return code; }
+  var match = code.match(/^\s*((.*?)(-([a-zA-Z]*))?)(;q=[-+]?[\d\.]*)?\s*$/);
+  if (!match) { return {code:code}}
+  
   return {
-    language: ISO_639_1_MAP[match[1].toLowerCase()],
-    country: ISO_3166_1_MAP[match[3] ? match[3].toUpperCase() : null]
+    language: ISO_639_1_MAP[match[2].toLowerCase()],
+    country: ISO_3166_1_MAP[match[4] ? match[4].toUpperCase() : null],
+    code: match[1]
   };
 }
+try {exports.parseLanguage = parseLanguage}catch(_){}
 
 var ISO_639_1_MAP = {
   "aa":"Afar",
