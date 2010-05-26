@@ -50,7 +50,7 @@ var query_logger = (function(stat_logger) {
   function log(query) {
     var timestamp = +new Date();
     stat_logger.update();
-    broadcaster.broadcast( {t:timestamp,  k:"query", q:query.q, l:query.lang, v:query.v} );
+    broadcaster.broadcast("query", {t:timestamp, q:query.q, l:query.lang, v:query.v} );
     var message = [timestamp, query.q, query.lang, query.v].join('\t') + "\n";
     if (DEBUG>2) { sys.print(QUERY_LOG + ': '+message); }
     fs.write(log_file, message, null, 'utf-8');
@@ -66,7 +66,7 @@ var share_logger = (function() {
   var share_file = fs.openSync(SHARE_LOG, 'a+');
   function log(query) {
     var timestamp = +new Date();
-    broadcaster.broadcast({ t: timestamp, k: "share", q: query.q, l: query.lang, g: query.gender, c: query.count, u: query.userid });
+    broadcaster.broadcast("share", { t: timestamp, q: query.q, l: query.lang, g: query.gender, c: query.count, u: query.userid });
     var message = [timestamp, query.q, query.lang, query.gender, query.count, query.userid, query.v].join('\t') + '\n';
     if (DEBUG>1) { sys.print(SHARE_LOG + ': '+message); }
     fs.write(share_file, message, null, 'utf-8' );
@@ -310,6 +310,11 @@ var server_stats = (function(qstats) {
     function invalid(request) {
       s.increment('invalid');
       sys.puts('Invalid url: '+request.url+'  from  '+reqToString(request));
+      broadcaster.broadcast("invalid url", {url: request.url, request_string: reqToString(request)});
+    }
+    function internal_error(request, e) {
+      broadcaster.broadcast("internal error", {url: request.url, message: e.message, stack: e.stack, request_string: reqToString(request)});
+      sys.puts("INTERNAL ERROR: " + e.stack || e.message);
     }
     function get_lang_from_header(override,headers) {
       var lang = '??', accept;
@@ -341,8 +346,10 @@ var server_stats = (function(qstats) {
       var error;
       var output;
       if (DEBUG>3) { sys.puts('request: '+reqToString(request)); }
-      if (request.headers['referer'] && request.headers['referer'].indexOf('http://faceopenbook.com') === 0) {
-          return write_404(response,"Hey, how about crediting us for the code?");
+      var our_site = /^http:\/\/(([a-zA-Z_\.]*?)\.)?youropenbook.org/;
+      if (request.headers.referer && !our_site.test(request.headers.referer)) {
+        broadcaster.broadcast("copycat", {referer: request.headers.referer, request_string: reqToString});
+        return response.end("{}");
       }
 
       try {
@@ -360,7 +367,10 @@ var server_stats = (function(qstats) {
           default: invalid(request);            break;
         }
       } catch(e) {
-        return write_404(response, +new Date()+': Internal Err: '+e+'  URL='+request.url);
+        internal_error(request, e);
+        response.writeHead(500);
+        response.end("Internal error.");
+        return;
       }
       response.writeHead(200, {
         'Content-Type'  : query.callback ? 'text/javascript' : 'text/plain',
