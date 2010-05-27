@@ -1,3 +1,4 @@
+# English
 anal
 anonboard
 blow\s*jobs?
@@ -35,3 +36,50 @@ upskirt
 vagina
 wank
 whore
+
+# Swedish
+arsle
+balle
+bög
+fan
+fitta
+fjortis
+hora
+jäkla
+jävel
+jävla
+knulla
+kuk
+rövhål
+skam
+skit
+slyna
+
+
+# Norwegian
+fitte
+kuk
+helvete
+faen
+balle
+satan
+jævel
+
+# Polish
+kurwa
+dupa
+cipa
+chuj
+spierdalaj
+jebany
+pizda
+fiut
+
+# Icelandic
+ríða
+helvítis
+andskotans
+djöfulsins
+
+# Greek
+μουνάκι
