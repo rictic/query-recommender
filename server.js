@@ -371,7 +371,7 @@ var server_stats = (function(qstats) {
         internal_error(request, e);
         response.writeHead(500);
         response.end("Internal error.");
-        return;
+        return null;
       }
       response.writeHead(200, {
         'Content-Type'  : query.callback ? 'text/javascript' : 'text/plain',
