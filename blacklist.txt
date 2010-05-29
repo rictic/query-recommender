@@ -64,6 +64,11 @@ faen
 balle
 satan
 jævel
+knulle
+runke
+hore
+pikk
+pule
 
 # Polish
 kurwa
@@ -83,3 +88,21 @@ djöfulsins
 
 # Greek
 μουνάκι
+
+# Hebrew
+זיון
+מזדיין
+בתחת
+
+# Italian
+cazzo
+fanculo
+merda
+sesso
+
+# French
+calisse
+crisse
+maudit
+putain
+tabarnak
