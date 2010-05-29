@@ -55,36 +55,35 @@ skam
 skit
 slyna
 
-
 # Norwegian
-fitte
-kuk
-helvete
-faen
 balle
-satan
+faen
+fitte
+helvete
+hore
 jævel
 knulle
-runke
-hore
+kuk
 pikk
 pule
+runke
+satan
 
 # Polish
-kurwa
-dupa
-cipa
 chuj
-spierdalaj
-jebany
-pizda
+cipa
+dupa
 fiut
+jebany
+kurwa
+pizda
+spierdalaj
 
 # Icelandic
-ríða
-helvítis
 andskotans
 djöfulsins
+helvítis
+ríða
 
 # Greek
 μουνάκι
