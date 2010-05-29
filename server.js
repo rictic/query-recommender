@@ -105,6 +105,7 @@ var blacklist = (function() {
   }
 
   function contains(str) {
+    if (!str || typeof str !=='string') { return true; } // ignore non-strings
     var forbidden = str.match(forbidden_re);
     if (forbidden && DEBUG>2) { sys.puts('Blacklist: matched: '+str); }
     return forbidden;
