@@ -167,7 +167,7 @@ var shares = (function(stat_logger) {
   function unpersist() {
     var state;
     try {
-      state = JSON.parse(fs.readFileSync(STATE_FILE));
+      state = JSON.parse(fs.readFileSync(STATE_FILE,'utf8'));
       // check it's a valid results object
       if (!state.lang) { return null; }
       for (var lcode in state.lang) {
@@ -336,11 +336,15 @@ var server_stats = (function(qstats) {
       }
       return lang;
     }
-    function write_404(response,msg) {
-      response.writeHead(404);
-      if (DEBUG) { sys.puts('write_404: '+msg); }
+    
+    function respond(response,code,msg) {
+      var headers = {
+        'Content-Type'  : 'text/javascript; charset=UTF-8',
+        'Cache-Control' : 'no-cache, must-revalidate',
+        'Pragma'        : 'no-cache'
+      };
+      response.writeHead(code,headers);
       response.end(msg);
-      return null;
     }
     http.createServer(function (request, response) {
       s.increment('total');
@@ -350,7 +354,8 @@ var server_stats = (function(qstats) {
       var our_site = /^http:\/\/(([a-zA-Z_\.]*?)\.)?youropenbook.org/;
       if (request.headers.referer && !our_site.test(request.headers.referer)) {
         broadcaster.broadcast("copycat", {referer: request.headers.referer, request_string: reqToString});
-        return response.end("{}");
+        respond(response,200,"{}");
+        return;
       }
 
       try {
@@ -370,20 +375,14 @@ var server_stats = (function(qstats) {
         }
       } catch(e) {
         internal_error(request, e);
-        response.writeHead(500);
-        response.end("Internal error.");
-        return null;
+        respond(response,500,"Internal error.");
+        return;
       }
-      response.writeHead(200, {
-        'Content-Type'  : query.callback ? 'text/javascript' : 'text/plain',
-        'Cache-Control' : 'no-cache, must-revalidate',
-        'Pragma'        : 'no-cache'
-      });
       if (query.callback) {
         output = query.callback + "(" + output + ")";
       }
-      response.end(output);
-      return null; // for jslint
+      respond(response,200,output);
+
     }
   ).listen(LOG_SERVER_PORT, '0.0.0.0');
 
