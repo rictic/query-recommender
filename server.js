@@ -51,7 +51,7 @@ var query_logger = (function(stat_logger) {
     var timestamp = +new Date();
     stat_logger.update();
     broadcaster.broadcast("query", {t:timestamp, q:query.q, l:query.lang, v:query.v} );
-    var message = [timestamp, query.q, query.lang, query.v].join('\t') + "\n";
+    var message = [timestamp, query.q, query.lang, query.v, query.ref].join('\t') + "\n";
     if (DEBUG>2) { sys.print(QUERY_LOG + ': '+message); }
     fs.write(log_file, message, null, 'utf-8');
   }
@@ -358,6 +358,7 @@ var server_stats = (function(qstats) {
         var query = parts.query || {};
         query.lang = get_lang_from_header(query.lang||null,request.headers);
         query.v    = query.v || 0; // client version
+        query.ref  = query.ref || ''; // referrer
         switch (parts.pathname) {
           case '/favicon.ico': break; // ignore
           case '/share':  output=share(query);  break;
