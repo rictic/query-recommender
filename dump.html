@@ -89,6 +89,15 @@
       return 'http://popular.youropenbook.org:8000/dump';
       })();
 
+      function lcodeName(lcode) {
+        var meta = parseLanguage(lcode);
+        var name = meta.language || lcode;
+        var $out = $('<span>',{title:lcode});
+        if (name)         {$('<b>',{text:name,        'class':'language'}).appendTo($out); }
+        if (meta.country) {$('<p>',{text:meta.country,'class':'country' }).appendTo($out); }
+        return $out;
+      }
+
       function padzero(n) { return (n<10 ? '0' : '') + n; }
       function format_timestamp(ts) {
         var d = new Date(ts);
@@ -118,6 +127,10 @@
           return c.replace(/hot(\d)/,function(_,level) { level--; if (level<0) { level=0; } return 'hot'+level; });
         });
         for (var lcode in result) { //lcode = language code (en-gb, en-us, en)
+          if (/\s|;/.test(lcode)) {
+            console.warn('Ignoring language code from server '+lcode);
+            continue;
+          }
           var newterms = result[lcode];
           var $row = $table.find('tr[lcode='+lcode+']');
           $row.attr('class','hot9');
@@ -141,14 +154,7 @@
         });
 
 
-        function lcodeName(lcode) {
-          var meta = parseLanguage(lcode);
-          var name = meta.language || lcode;
-          var $out = $('<span>',{title:lcode});
-          if (name)         {$('<b>',{text:name,        'class':'language'}).appendTo($out); }
-          if (meta.country) {$('<p>',{text:meta.country,'class':'country' }).appendTo($out); }
-          return $out;
-        }
+
         // add any new terms
         $.each(newterms, function(_,term) {
           var $old_term = $old_terms.filter(function() { return $(this).attr('term')===term; });

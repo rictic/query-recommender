@@ -1,9 +1,10 @@
+# English
 anal
 anonboard
-blow\s*job
+blow\s*jobs?
 boob\w+
 clit
-cock
+cocks?
 condom
 cum
 cumshot
@@ -11,7 +12,7 @@ cunt
 dick
 dildo
 fellatio
-fingering
+finger(ed|ing)
 fist\w+
 fuck\w*
 gang\s*bang
@@ -21,6 +22,7 @@ naked
 nipple\w+
 nude
 orgasm
+panties
 penetration
 penis
 porn
@@ -34,3 +36,72 @@ upskirt
 vagina
 wank
 whore
+
+# Swedish
+arsle
+balle
+bög
+fan
+fitta
+fjortis
+hora
+jäkla
+jävel
+jävla
+knulla
+kuk
+rövhål
+skam
+skit
+slyna
+
+# Norwegian
+balle
+faen
+fitte
+helvete
+hore
+jævel
+knulle
+kuk
+pikk
+pule
+runke
+satan
+
+# Polish
+chuj
+cipa
+dupa
+fiut
+jebany
+kurwa
+pizda
+spierdalaj
+
+# Icelandic
+andskotans
+djöfulsins
+helvítis
+ríða
+
+# Greek
+μουνάκι
+
+# Hebrew
+זיון
+מזדיין
+בתחת
+
+# Italian
+cazzo
+fanculo
+merda
+sesso
+
+# French
+calisse
+crisse
+maudit
+putain
+tabarnak

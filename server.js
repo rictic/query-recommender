@@ -54,7 +54,7 @@ var query_logger = (function(stat_logger) {
     var timestamp = +new Date();
     stat_logger.update();
     broadcaster.broadcast("query", {t:timestamp, q:query.q, l:query.lang, v:query.v} );
-    var message = [timestamp, query.q, query.lang, query.v].join('\t') + "\n";
+    var message = [timestamp, query.q, query.lang, query.v, query.ref].join('\t') + "\n";
     if (DEBUG>2) { sys.print(QUERY_LOG + ': '+message); }
     fs.write(log_file, message, null, 'utf-8');
   }
@@ -108,6 +108,7 @@ var blacklist = (function() {
   }
 
   function contains(str) {
+    if (!str || typeof str !=='string') { return true; } // ignore non-strings
     var forbidden = str.match(forbidden_re);
     if (forbidden && DEBUG>2) { sys.puts('Blacklist: matched: '+str); }
     return forbidden;
@@ -169,7 +170,7 @@ var shares = (function(stat_logger) {
   function unpersist() {
     var state;
     try {
-      state = JSON.parse(fs.readFileSync(STATE_FILE));
+      state = JSON.parse(fs.readFileSync(STATE_FILE,'utf8'));
       // check it's a valid results object
       if (!state.lang) { return null; }
       for (var lcode in state.lang) {
@@ -265,129 +266,128 @@ var server_stats = (function(qstats) {
     return s;
   }
   return {get:get,increment:increment};
-})(stats);
+  })(stats);
 
-/////////////////
-// log server  //
-/////////////////
+  /////////////////
+  // log server  //
+  /////////////////
 var http_server = (function(share_logger,shares,query_logger,s) {
-  function share(query) {
-    s.increment('share');
-    share_logger.log(query);
-    shares.add(query);
-    return '"SHARED"'; // dummy string
-  }
-  function latest(query) {
-    s.increment('latest');
-    query_logger.log(query);
-    return shares.get_results(query.lang);
-  }
-  function old(query) {
-    s.increment('old');
-    if (query.q) {
-      if (DEBUG) { sys.puts('Got old style log '+query.q); }
-      return latest(query);
+    function share(query) {
+      s.increment('share');
+      share_logger.log(query);
+      shares.add(query);
+      return '"SHARED"'; // dummy string
     }
-    else if (query.share) {
-      if (DEBUG) { sys.puts('Ignore old style share: '+query.share); }
-      return '"IGNORED SHARE"';
+    function latest(query) {
+      s.increment('latest');
+      query_logger.log(query);
+      return shares.get_results(query.lang);
     }
-    else  {
-      sys.puts('Invalid url');
-      return '"IGNORED"';
+    function old(query) {
+      s.increment('old');
+      if (query.q) {
+        if (DEBUG) { sys.puts('Got old style log '+query.q); }
+        return latest(query);
+      }
+      else if (query.share) {
+        if (DEBUG) { sys.puts('Ignore old style share: '+query.share); }
+        return '"IGNORED SHARE"';
+      }
+      else  {
+        sys.puts('Invalid url');
+        return '"IGNORED"';
+      }
     }
-  }
-  function dumps(query) {
-    s.increment('dump');
-    return shares.dump(query.lastdump);
-  }
-  function stats(query) {
-    s.increment('stats');
-    return JSON.stringify(s.get(),null,2);
-  }
-  function reqToString(request) {
-    return 'remoteAddress:'+request.socket.remoteAddress +
-    ' referrer:'  + (request.headers['referer']   ||'??') + 
-    ' user-agent:'+ (request.headers['user-agent']||'??');
-  }
-  function invalid(request) {
-    s.increment('invalid');
-    sys.puts('Invalid url: '+request.url+'  from  '+reqToString(request));
-    broadcaster.broadcast("invalid url", {url: request.url, request_string: reqToString(request)});
-  }
-  function internal_error(request, e) {
-    broadcaster.broadcast("internal error", {url: request.url, message: e.message, stack: e.stack, request_string: reqToString(request)});
-    sys.puts("INTERNAL ERROR: " + e.stack || e.message);
-  }
-  function get_lang_from_header(override,headers) {
-    var lang = '??', accept;
-    if (override) { accept = override; }
-    else if ('accept-language' in headers) {
+    function dumps(query) {
+      s.increment('dump');
+      return shares.dump(query.lastdump);
+    }
+    function stats(query) {
+      s.increment('stats');
+      return JSON.stringify(s.get(),null,2);
+    }
+    function reqToString(request) {
+      return 'remoteAddress:'+request.socket.remoteAddress +
+      ' referrer:'  + (request.headers['referer']   ||'??') + 
+      ' user-agent:'+ (request.headers['user-agent']||'??');
+    }
+    function invalid(request) {
+      s.increment('invalid');
+      sys.puts('Invalid url: '+request.url+'  from  '+reqToString(request));
+      broadcaster.broadcast("invalid url", {url: request.url, request_string: reqToString(request)});
+    }
+    function internal_error(request, e) {
+      broadcaster.broadcast("internal error", {url: request.url, message: e.message, stack: e.stack, request_string: reqToString(request)});
+      sys.puts("INTERNAL ERROR: " + e.stack || e.message);
+    }
+    function get_lang_from_header(override,headers) {
+      var lang = '??', accept;
+      if (override) { accept = override; }
+      else if ('accept-language' in headers) {
       accept  = parseLanguage(headers['accept-language'].toLowerCase()).code;
-    } else {
-      //  Firefox sometimes doesn't send accept-language
-      if (DEBUG>2) { sys.puts('accept-language not in headers: '+sys.inspect(headers)); }
-    }
-    if (accept) {
-      var bits = accept.split(/,|;/);
-      if (bits.length && (/^\w+(-\w+)?$/.test(bits[0]))) {
-        lang = bits[0];
       } else {
-        if (DEBUG) { sys.puts('accept-language could not parse: '+accept); }
+        //  Firefox sometimes doesn't send accept-language
+        if (DEBUG>2) { sys.puts('accept-language not in headers: '+sys.inspect(headers)); }
       }
+      if (accept) {
+        var bits = accept.split(/,|;/);
+        if (bits.length && (/^\w+(-\w+)?$/.test(bits[0]))) {
+          lang = bits[0];
+        } else {
+          if (DEBUG) { sys.puts('accept-language could not parse: '+accept); }
+        }
+      }
+      return lang;
     }
-    return lang;
-  }
-  function write_404(response,msg) {
-    response.writeHead(404);
-    if (DEBUG) { sys.puts('write_404: '+msg); }
-    response.end(msg);
-    return null;
-  }
+    
+    function respond(response,code,msg) {
+      var headers = {
+        'Content-Type'  : 'text/javascript; charset=UTF-8',
+        'Cache-Control' : 'no-cache, must-revalidate',
+        'Pragma'        : 'no-cache'
+      };
+      response.writeHead(code,headers);
+      response.end(msg);
+    }
   var http_server = http.createServer(function (request, response) {
-    s.increment('total');
-    var error;
-    var output;
-    if (DEBUG>3) { sys.puts('request: '+reqToString(request)); }
-    var our_site = /^http:\/\/(([a-zA-Z_\.]*?)\.)?youropenbook.org/;
-    if (request.headers.referer && !our_site.test(request.headers.referer)) {
-      broadcaster.broadcast("copycat", {referer: request.headers.referer, request_string: reqToString});
-      return response.end("{}");
-    }
-
-    try {
-      var parts = url.parse(request.url, true);
-      var query = parts.query || {};
-      query.lang = get_lang_from_header(query.lang||null,request.headers);
-      query.v    = query.v || 0; // client version
-      switch (parts.pathname) {
-        case '/favicon.ico': break; // ignore
-        case '/share':  output=share(query);  break;
-        case '/latest': output=latest(query); break;
-        case '/dump':   output=dumps(query);  break;
-        case '/stats':  output=stats(query);  break;
-        case '/':       output=old(query);    break; // map old-style: TODO: remove once caches flush
-        default: invalid(request);            break;
+      s.increment('total');
+      var error;
+      var output;
+      if (DEBUG>3) { sys.puts('request: '+reqToString(request)); }
+      var our_site = /^http:\/\/(([a-zA-Z_\.]*?)\.)?youropenbook.org/;
+      if (request.headers.referer && !our_site.test(request.headers.referer)) {
+        broadcaster.broadcast("copycat", {referer: request.headers.referer, request_string: reqToString});
+        respond(response,200,"{}");
+        return;
       }
-    } catch(e) {
-      internal_error(request, e);
-      response.writeHead(500);
-      response.end("Internal error.");
-      return;
-    }
-    response.writeHead(200, {
-      'Content-Type'  : query.callback ? 'text/javascript' : 'text/plain',
-      'Cache-Control' : 'no-cache, must-revalidate',
-      'Pragma'        : 'no-cache'
-    });
-    if (query.callback) {
-      output = query.callback + "(" + output + ")";
-    }
-    response.end(output);
-    return null; // for jslint
+
+      try {
+        var parts = url.parse(request.url, true);
+        var query = parts.query || {};
+        query.lang = get_lang_from_header(query.lang||null,request.headers);
+        query.v    = query.v || 0; // client version
+        query.ref  = query.ref || ''; // referrer
+        switch (parts.pathname) {
+          case '/favicon.ico': break; // ignore
+          case '/share':  output=share(query);  break;
+          case '/latest': output=latest(query); break;
+          case '/dump':   output=dumps(query);  break;
+          case '/stats':  output=stats(query);  break;
+          case '/':       output=old(query);    break; // map old-style: TODO: remove once caches flush
+          default: invalid(request);            break;
+        }
+      } catch(e) {
+        internal_error(request, e);
+        respond(response,500,"Internal error.");
+        return;
+      }
+      if (query.callback) {
+        output = query.callback + "(" + output + ")";
+      }
+    respond(response,200,output);
   });
   http_server.listen(LOG_SERVER_PORT, '0.0.0.0');
-
+  
   sys.puts('Log Server running on port '+LOG_SERVER_PORT);
   return http_server;
 }
@@ -444,11 +444,11 @@ var broadcaster = (function(s) {
       for (var i=0;i<1000;i++) { message += ' '; }
       message += '\n';
     }
-    
+
     var encoded = JSON.stringify(out);
     message += encoded + "\n";
     socket_server.broadcast(encoded);
-    
+
     // sent to all clients
     client_list.forEach(function(client) {
       // test to see if the stream has closed (this can happen before the 'close' event arrives)
