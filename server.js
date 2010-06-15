@@ -179,7 +179,7 @@ var shares = (function(stat_logger) {
         update_output(lang_result,+new Date()); // make sure output reflects any new filtering
       }
     } catch(e) {
-      sys.puts('unpersist failure: '+e);
+      sys.puts('unpersist failure: '+(e.stack || e.message || e));
     }
     return state;
   }
