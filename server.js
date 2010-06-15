@@ -3,6 +3,7 @@ var http = require('http');
 var url  = require('url');
 var net  = require('net');
 var fs   = require('fs');
+var parseLanguage = require("./language").parseLanguage
 
 var LOG_SERVER_PORT = 8000;    // for /latest?q=xxx&gender=any and /share?q=xxx&gender=any&count=11&userid=1058420149
 var BROADCASTER_PORT = 7000;   // for realtime stats
@@ -10,6 +11,8 @@ var QUERY_LOG  = 'query.log';  // every query run on our site
 var SHARE_LOG  = 'share.log';  // every query that's a candidate for recent searches
 var STATE_FILE = 'saved.json'; // persisted server state
 var BLACK_FILE = 'blacklist.txt';  // list of forbidden words
+var io = require("./lib/socket.io/socket.io")
+
 
 // invoke with node server.js -debug=3 for max console logging
 var DEBUG=(function(arg) {
@@ -262,136 +265,138 @@ var server_stats = (function(qstats) {
     return s;
   }
   return {get:get,increment:increment};
-  })(stats);
+})(stats);
 
-  /////////////////
-  // log server  //
-  /////////////////
-  (function(share_logger,shares,query_logger,s) {
-    function share(query) {
-      s.increment('share');
-      share_logger.log(query);
-      shares.add(query);
-      return '"SHARED"'; // dummy string
+/////////////////
+// log server  //
+/////////////////
+var http_server = (function(share_logger,shares,query_logger,s) {
+  function share(query) {
+    s.increment('share');
+    share_logger.log(query);
+    shares.add(query);
+    return '"SHARED"'; // dummy string
+  }
+  function latest(query) {
+    s.increment('latest');
+    query_logger.log(query);
+    return shares.get_results(query.lang);
+  }
+  function old(query) {
+    s.increment('old');
+    if (query.q) {
+      if (DEBUG) { sys.puts('Got old style log '+query.q); }
+      return latest(query);
     }
-    function latest(query) {
-      s.increment('latest');
-      query_logger.log(query);
-      return shares.get_results(query.lang);
+    else if (query.share) {
+      if (DEBUG) { sys.puts('Ignore old style share: '+query.share); }
+      return '"IGNORED SHARE"';
     }
-    function old(query) {
-      s.increment('old');
-      if (query.q) {
-        if (DEBUG) { sys.puts('Got old style log '+query.q); }
-        return latest(query);
-      }
-      else if (query.share) {
-        if (DEBUG) { sys.puts('Ignore old style share: '+query.share); }
-        return '"IGNORED SHARE"';
-      }
-      else  {
-        sys.puts('Invalid url');
-        return '"IGNORED"';
-      }
+    else  {
+      sys.puts('Invalid url');
+      return '"IGNORED"';
     }
-    function dumps(query) {
-      s.increment('dump');
-      return shares.dump(query.lastdump);
+  }
+  function dumps(query) {
+    s.increment('dump');
+    return shares.dump(query.lastdump);
+  }
+  function stats(query) {
+    s.increment('stats');
+    return JSON.stringify(s.get(),null,2);
+  }
+  function reqToString(request) {
+    return 'remoteAddress:'+request.socket.remoteAddress +
+    ' referrer:'  + (request.headers['referer']   ||'??') + 
+    ' user-agent:'+ (request.headers['user-agent']||'??');
+  }
+  function invalid(request) {
+    s.increment('invalid');
+    sys.puts('Invalid url: '+request.url+'  from  '+reqToString(request));
+    broadcaster.broadcast("invalid url", {url: request.url, request_string: reqToString(request)});
+  }
+  function internal_error(request, e) {
+    broadcaster.broadcast("internal error", {url: request.url, message: e.message, stack: e.stack, request_string: reqToString(request)});
+    sys.puts("INTERNAL ERROR: " + e.stack || e.message);
+  }
+  function get_lang_from_header(override,headers) {
+    var lang = '??', accept;
+    if (override) { accept = override; }
+    else if ('accept-language' in headers) {
+      accept  = parseLanguage(headers['accept-language'].toLowerCase()).code;
+    } else {
+      //  Firefox sometimes doesn't send accept-language
+      if (DEBUG>2) { sys.puts('accept-language not in headers: '+sys.inspect(headers)); }
     }
-    function stats(query) {
-      s.increment('stats');
-      return JSON.stringify(s.get(),null,2);
-    }
-    function reqToString(request) {
-      return 'remoteAddress:'+request.socket.remoteAddress +
-      ' referrer:'  + (request.headers['referer']   ||'??') + 
-      ' user-agent:'+ (request.headers['user-agent']||'??');
-    }
-    function invalid(request) {
-      s.increment('invalid');
-      sys.puts('Invalid url: '+request.url+'  from  '+reqToString(request));
-      broadcaster.broadcast("invalid url", {url: request.url, request_string: reqToString(request)});
-    }
-    function internal_error(request, e) {
-      broadcaster.broadcast("internal error", {url: request.url, message: e.message, stack: e.stack, request_string: reqToString(request)});
-      sys.puts("INTERNAL ERROR: " + e.stack || e.message);
-    }
-    function get_lang_from_header(override,headers) {
-      var lang = '??', accept;
-      if (override) { accept = override; }
-      else if ('accept-language' in headers) {
-        accept  = headers['accept-language'].toLowerCase();
+    if (accept) {
+      var bits = accept.split(/,|;/);
+      if (bits.length && (/^\w+(-\w+)?$/.test(bits[0]))) {
+        lang = bits[0];
       } else {
-        //  Firefox sometimes doesn't send accept-language
-        if (DEBUG>2) { sys.puts('accept-language not in headers: '+sys.inspect(headers)); }
+        if (DEBUG) { sys.puts('accept-language could not parse: '+accept); }
       }
-      if (accept) {
-        var bits = accept.split(/,|;/);
-        if (bits.length && (/^\w+(-\w+)?$/.test(bits[0]))) {
-          lang = bits[0];
-        } else {
-          if (DEBUG) { sys.puts('accept-language could not parse: '+accept); }
-        }
-      }
-      return lang;
     }
-    function write_404(response,msg) {
-      response.writeHead(404);
-      if (DEBUG) { sys.puts('write_404: '+msg); }
-      response.end(msg);
-      return null;
+    return lang;
+  }
+  function write_404(response,msg) {
+    response.writeHead(404);
+    if (DEBUG) { sys.puts('write_404: '+msg); }
+    response.end(msg);
+    return null;
+  }
+  var http_server = http.createServer(function (request, response) {
+    s.increment('total');
+    var error;
+    var output;
+    if (DEBUG>3) { sys.puts('request: '+reqToString(request)); }
+    var our_site = /^http:\/\/(([a-zA-Z_\.]*?)\.)?youropenbook.org/;
+    if (request.headers.referer && !our_site.test(request.headers.referer)) {
+      broadcaster.broadcast("copycat", {referer: request.headers.referer, request_string: reqToString});
+      return response.end("{}");
     }
-    http.createServer(function (request, response) {
-      s.increment('total');
-      var error;
-      var output;
-      if (DEBUG>3) { sys.puts('request: '+reqToString(request)); }
-      var our_site = /^http:\/\/(([a-zA-Z_\.]*?)\.)?youropenbook.org/;
-      if (request.headers.referer && !our_site.test(request.headers.referer)) {
-        broadcaster.broadcast("copycat", {referer: request.headers.referer, request_string: reqToString});
-        return response.end("{}");
-      }
 
-      try {
-        var parts = url.parse(request.url, true);
-        var query = parts.query || {};
-        query.lang = get_lang_from_header(query.lang||null,request.headers);
-        query.v    = query.v || 0; // client version
-        switch (parts.pathname) {
-          case '/favicon.ico': break; // ignore
-          case '/share':  output=share(query);  break;
-          case '/latest': output=latest(query); break;
-          case '/dump':   output=dumps(query);  break;
-          case '/stats':  output=stats(query);  break;
-          case '/':       output=old(query);    break; // map old-style: TODO: remove once caches flush
-          default: invalid(request);            break;
-        }
-      } catch(e) {
-        internal_error(request, e);
-        response.writeHead(500);
-        response.end("Internal error.");
-        return;
+    try {
+      var parts = url.parse(request.url, true);
+      var query = parts.query || {};
+      query.lang = get_lang_from_header(query.lang||null,request.headers);
+      query.v    = query.v || 0; // client version
+      switch (parts.pathname) {
+        case '/favicon.ico': break; // ignore
+        case '/share':  output=share(query);  break;
+        case '/latest': output=latest(query); break;
+        case '/dump':   output=dumps(query);  break;
+        case '/stats':  output=stats(query);  break;
+        case '/':       output=old(query);    break; // map old-style: TODO: remove once caches flush
+        default: invalid(request);            break;
       }
-      response.writeHead(200, {
-        'Content-Type'  : query.callback ? 'text/javascript' : 'text/plain',
-        'Cache-Control' : 'no-cache, must-revalidate',
-        'Pragma'        : 'no-cache'
-      });
-      if (query.callback) {
-        output = query.callback + "(" + output + ")";
-      }
-      response.end(output);
-      return null; // for jslint
+    } catch(e) {
+      internal_error(request, e);
+      response.writeHead(500);
+      response.end("Internal error.");
+      return;
     }
-  ).listen(LOG_SERVER_PORT, '0.0.0.0');
+    response.writeHead(200, {
+      'Content-Type'  : query.callback ? 'text/javascript' : 'text/plain',
+      'Cache-Control' : 'no-cache, must-revalidate',
+      'Pragma'        : 'no-cache'
+    });
+    if (query.callback) {
+      output = query.callback + "(" + output + ")";
+    }
+    response.end(output);
+    return null; // for jslint
+  });
+  http_server.listen(LOG_SERVER_PORT, '0.0.0.0');
 
   sys.puts('Log Server running on port '+LOG_SERVER_PORT);
-
+  return http_server;
 }
 )(share_logger,shares,query_logger,server_stats);
 
 
-
+var socket_server = io.listen(http_server, {
+	transports: ['websocket', 'htmlfile', 'xhr-multipart', 'xhr-polling'],
+});
 
 //////////////////
 //  broadcaster //
@@ -439,9 +444,11 @@ var broadcaster = (function(s) {
       for (var i=0;i<1000;i++) { message += ' '; }
       message += '\n';
     }
-
-    message += JSON.stringify(out) + "\n";
-
+    
+    var encoded = JSON.stringify(out);
+    message += encoded + "\n";
+    socket_server.broadcast(encoded);
+    
     // sent to all clients
     client_list.forEach(function(client) {
       // test to see if the stream has closed (this can happen before the 'close' event arrives)
